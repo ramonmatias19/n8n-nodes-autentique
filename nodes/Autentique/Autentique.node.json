@@ -1,0 +1,20 @@
+{
+	"node": "n8n-nodes-base.autentique",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": [
+		"Legal & Document Management"
+	],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://docs.autentique.com.br/api"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://docs.autentique.com.br/api"
+			}
+		]
+	}
+}
