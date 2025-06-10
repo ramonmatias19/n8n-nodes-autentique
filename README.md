@@ -17,6 +17,10 @@ Este Community Node é uma solução 100% gratuita, criada com o intuito de simp
   <a href="https://www.npmjs.com/package/n8n-nodes-autentique"><img src="https://img.shields.io/badge/NPM-Package-red?style=for-the-badge&logo=npm&logoColor=white" alt="NPM"></a>
 </p>
 
+> **Aviso:** Este node foi desenvolvido de forma independente para facilitar integrações com a API pública da Autentique no n8n.  
+> Não é afiliado, endossado ou mantido pela Autentique.  
+> Todas as marcas citadas pertencem aos seus respectivos proprietários.
+
 <h1></h1>
 
 <h3>⚙️ Requisitos</h3>
