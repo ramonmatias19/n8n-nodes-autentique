@@ -88,6 +88,11 @@ export class AutentiqueTrigger implements INodeType {
 						description: 'Disparado quando um documento é totalmente assinado',
 					},
 					{
+						name: 'Documento Criado',
+						value: 'document_created',
+						description: 'Disparado quando um novo documento é criado',
+					},
+					{
 						name: 'Documento Rejeitado',
 						value: 'document_rejected',
 						description: 'Disparado quando um documento é rejeitado',
@@ -103,12 +108,7 @@ export class AutentiqueTrigger implements INodeType {
 						description: 'Disparado quando um signatário rejeita a assinatura',
 					},
 					{
-						name: 'Documento Criado',
-						value: 'document_created',
-						description: 'Disparado quando um novo documento é criado',
-					},
-					{
-						name: 'Todos os Eventos',
+						name: 'Todos Os Eventos',
 						value: '*',
 						description: 'Receber notificações de todos os eventos',
 					},
@@ -122,10 +122,10 @@ export class AutentiqueTrigger implements INodeType {
 				name: 'specificDocuments',
 				type: 'boolean',
 				default: false,
-				description: 'Se verdadeiro, filtra apenas documentos específicos',
+				description: 'Whether to filter only specific documents',
 			},
 			{
-				displayName: 'IDs dos Documentos',
+				displayName: 'IDs Dos Documentos',
 				name: 'documentIds',
 				type: 'string',
 				default: '',
@@ -142,7 +142,7 @@ export class AutentiqueTrigger implements INodeType {
 				name: 'validateSignature',
 				type: 'boolean',
 				default: true,
-				description: 'Se verdadeiro, valida a assinatura do webhook usando o token da API',
+				description: 'Whether to validate the webhook signature using the API token',
 			},
 		],
 	};
