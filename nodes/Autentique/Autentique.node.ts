@@ -76,7 +76,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Add Signatory',
 						value: 'addSignatory',
-						action: 'Adicionar signat rio',
+						action: 'Adicionar signatário',
 						description: 'Adicionar um novo signatário ao documento',
 						routing: {
 							request: {
@@ -112,8 +112,14 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation CreateDocumentMutation($document: DocumentInput!) {
-										createDocument(document: $document) {
+									query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $organization_id: Int, $folder_id: String) {
+										createDocument(
+											document: $document,
+											signers: $signers,
+											file: $file,
+											organization_id: $organization_id,
+											folder_id: $folder_id
+										) {
 											id
 											name
 											refusable
@@ -123,17 +129,34 @@ export class Autentique implements INodeType {
 												public_id
 												name
 												email
+												created_at
+												action { name }
+												link { short_link }
+												user { id name email }
 											}
 										}
 									}`,
 									variables: {
 										document: {
 											name: '={{$parameter["documentName"]}}',
-											refusable: '={{$parameter["refusable"] || false}}',
+											message: '={{$parameter["message"] || undefined}}',
+											reminder: '={{$parameter["reminder"] || undefined}}',
 											sortable: '={{$parameter["sortable"] || false}}',
-											file: '={{$parameter["fileContent"]}}',
-											signatures: '={{$parameter["signatures"]}}'
-										}
+											footer: '={{$parameter["footer"] || undefined}}',
+											refusable: '={{$parameter["refusable"] || false}}',
+											qualified: '={{$parameter["qualified"] || false}}',
+											scrolling_required: '={{$parameter["scrollingRequired"] || false}}',
+											stop_on_rejected: '={{$parameter["stopOnRejected"] || false}}',
+											new_signature_style: '={{$parameter["newSignatureStyle"] || false}}',
+											show_audit_page: '={{$parameter["showAuditPage"] !== false}}',
+											ignore_cpf: '={{$parameter["ignoreCpf"] || false}}',
+											ignore_birthdate: '={{$parameter["ignoreBirthdate"] || false}}',
+											deadline_at: '={{$parameter["deadlineAt"] || undefined}}'
+										},
+										signers: '={{$parameter["signatures"]}}',
+										file: null,
+										organization_id: '={{$parameter["organizationId"] || undefined}}',
+										folder_id: '={{$parameter["createInFolderId"] || undefined}}'
 									}
 								}
 							},
@@ -327,7 +350,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Remove Signatory',
 						value: 'removeSignatory',
-						action: 'Remover signat rio',
+						action: 'Remover signatário',
 						description: 'Remover um signatário do documento',
 						routing: {
 							request: {
@@ -413,6 +436,117 @@ export class Autentique implements INodeType {
 							},
 						},
 					},
+					{
+						name: 'Transfer Document',
+						value: 'transferDocument',
+						action: 'Transferir documento',
+						description: 'Transferir um documento para outro usuário ou organização',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation transferDocument($docId: ID!, $receiverEmail: String!) {
+										transferDocument(docId: $docId, receiverEmail: $receiverEmail) {
+											id
+											name
+											signatures {
+												public_id
+												name
+												email
+											}
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										receiverEmail: '={{$parameter["receiverEmail"]}}'
+									}
+								}
+							},
+						},
+					},
+					{
+						name: 'Send via WhatsApp Flow',
+						value: 'sendWhatsAppFlow',
+						action: 'Enviar via WhatsApp Flow',
+						description: 'Enviar documento usando WhatsApp Flow',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation sendDocumentWhatsAppFlow($docId: ID!, $phone: String!, $flowData: WhatsAppFlowInput) {
+										sendDocumentWhatsAppFlow(docId: $docId, phone: $phone, flowData: $flowData) {
+											id
+											name
+											signatures {
+												public_id
+												name
+												phone
+											}
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										phone: '={{$parameter["phone"]}}',
+										flowData: '={{$parameter["flowData"] || undefined}}'
+									}
+								}
+							},
+						},
+					},
+					{
+						name: 'Approve Biometric Verification',
+						value: 'approveBiometric',
+						action: 'Aprovar verificação biométrica',
+						description: 'Aprovar uma verificação biométrica pendente',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation approvePendingBiometricVerification($docId: ID!, $requestSignatureId: ID!) {
+										approvePendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId) {
+											id
+											status
+											verified_at
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										requestSignatureId: '={{$parameter["signatureId"]}}'
+									}
+								}
+							},
+						},
+					},
+					{
+						name: 'Reject Biometric Verification',
+						value: 'rejectBiometric',
+						action: 'Rejeitar verificação biométrica',
+						description: 'Rejeitar uma verificação biométrica pendente',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation rejectPendingBiometricVerification($docId: ID!, $requestSignatureId: ID!, $reason: String) {
+										rejectPendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId, reason: $reason) {
+											id
+											status
+											rejected_at
+											rejection_reason
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										requestSignatureId: '={{$parameter["signatureId"]}}',
+										reason: '={{$parameter["rejectionReason"] || undefined}}'
+									}
+								}
+							},
+						},
+					},
 				],
 				default: 'getMany',
 			},
@@ -426,7 +560,7 @@ export class Autentique implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['documents'],
-						operation: ['get', 'sign', 'delete', 'moveToFolder', 'edit', 'addSignatory', 'removeSignatory', 'createSignatureLink', 'resendSignatures'],
+						operation: ['get', 'sign', 'delete', 'moveToFolder', 'edit', 'addSignatory', 'removeSignatory', 'createSignatureLink', 'resendSignatures', 'transferDocument', 'sendWhatsAppFlow', 'approveBiometric', 'rejectBiometric'],
 					},
 				},
 				default: '',
@@ -492,7 +626,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Whether the document can be refused',
+				description: 'Se o documento pode ser recusado',
 			},
 			{
 				displayName: 'Sortable',
@@ -505,7 +639,222 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Whether signatures must follow a specific order',
+				description: 'Se as assinaturas devem seguir uma ordem específica',
+			},
+
+			// Advanced Document Creation Fields
+			{
+				displayName: 'Message',
+				name: 'message',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: '',
+				description: 'Mensagem customizada enviada para os emails dos signatários',
+				typeOptions: {
+					rows: 3,
+				},
+			},
+			{
+				displayName: 'Reminder',
+				name: 'reminder',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				options: [
+					{
+						name: 'None',
+						value: '',
+						description: 'Sem lembretes automáticos',
+					},
+					{
+						name: 'Daily',
+						value: 'DAILY',
+						description: 'Lembrete diário',
+					},
+					{
+						name: 'Weekly',
+						value: 'WEEKLY',
+						description: 'Lembrete semanal',
+					},
+				],
+				default: '',
+				description: 'Frequência de lembretes automáticos',
+			},
+			{
+				displayName: 'Footer Position',
+				name: 'footer',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				options: [
+					{
+						name: 'None',
+						value: '',
+						description: 'Sem rodapé',
+					},
+					{
+						name: 'Bottom',
+						value: 'BOTTOM',
+						description: 'Rodapé na parte inferior',
+					},
+					{
+						name: 'Left',
+						value: 'LEFT',
+						description: 'Rodapé à esquerda',
+					},
+					{
+						name: 'Right',
+						value: 'RIGHT',
+						description: 'Rodapé à direita',
+					},
+				],
+				default: '',
+				description: 'Posição do rodapé no documento',
+			},
+			{
+				displayName: 'Qualified Signature',
+				name: 'qualified',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Ativa assinatura qualificada usando certificados digitais',
+			},
+			{
+				displayName: 'Scrolling Required',
+				name: 'scrollingRequired',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Exige que o signatário role toda a página antes de assinar',
+			},
+			{
+				displayName: 'Stop on Rejected',
+				name: 'stopOnRejected',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Impede que outras pessoas assinem quando o documento for recusado',
+			},
+			{
+				displayName: 'New Signature Style',
+				name: 'newSignatureStyle',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Ativa novos campos de assinatura',
+			},
+			{
+				displayName: 'Show Audit Page',
+				name: 'showAuditPage',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: true,
+				description: 'Exibe a página de auditoria no final do documento',
+			},
+			{
+				displayName: 'Ignore CPF',
+				name: 'ignoreCpf',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Remove obrigatoriedade de preencher CPF para assinar',
+			},
+			{
+				displayName: 'Ignore Birthdate',
+				name: 'ignoreBirthdate',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Remove obrigatoriedade de preencher data de nascimento',
+			},
+			{
+				displayName: 'Deadline',
+				name: 'deadlineAt',
+				type: 'dateTime',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: '',
+				description: 'Data limite para assinaturas (formato ISO)',
+			},
+			{
+				displayName: 'Organization ID',
+				name: 'organizationId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: '',
+				description: 'ID da organização onde criar o documento (opcional)',
+				placeholder: 'org_xxxxx',
+			},
+			{
+				displayName: 'Folder ID',
+				name: 'createInFolderId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['create'],
+					},
+				},
+				default: '',
+				description: 'ID da pasta onde criar o documento (opcional)',
+				placeholder: 'folder_xxxxx',
 			},
 			{
 				displayName: 'Signature ID',
@@ -515,7 +864,7 @@ export class Autentique implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['documents'],
-						operation: ['sign', 'removeSignatory', 'createSignatureLink'],
+						operation: ['sign', 'removeSignatory', 'createSignatureLink', 'approveBiometric', 'rejectBiometric'],
 					},
 				},
 				default: '',
@@ -550,7 +899,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: 50,
-				description: 'Max number of results to return',
+				description: 'Número máximo de resultados a retornar',
 				typeOptions: {
 					minValue: 1,
 				},
@@ -570,6 +919,72 @@ export class Autentique implements INodeType {
 				typeOptions: {
 					minValue: 1,
 				},
+			},
+
+			// Transfer Document fields
+			{
+				displayName: 'Receiver Email',
+				name: 'receiverEmail',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['transferDocument'],
+					},
+				},
+				default: '',
+				description: 'Email do usuário que receberá o documento',
+				placeholder: 'usuario@exemplo.com',
+			},
+
+			// WhatsApp Flow fields
+			{
+				displayName: 'Phone Number',
+				name: 'phone',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['sendWhatsAppFlow'],
+					},
+				},
+				default: '',
+				description: 'Número de telefone para envio via WhatsApp (formato internacional)',
+				placeholder: '+5511999999999',
+			},
+			{
+				displayName: 'Flow Data',
+				name: 'flowData',
+				type: 'json',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['sendWhatsAppFlow'],
+					},
+				},
+				default: '{}',
+				description: 'Dados adicionais para o WhatsApp Flow (opcional)',
+				typeOptions: {
+					rows: 3,
+				},
+			},
+
+			// Biometric Verification fields
+			{
+				displayName: 'Rejection Reason',
+				name: 'rejectionReason',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['rejectBiometric'],
+					},
+				},
+				default: '',
+				description: 'Motivo da rejeição da verificação biométrica (opcional)',
+				placeholder: 'Documento ilegível',
 			},
 
 			// Move to Folder fields
@@ -649,7 +1064,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get Current',
 						value: 'getCurrent',
-						action: 'Obter usu rio atual',
+						action: 'Obter usuário atual',
 						description: 'Obter informações do usuário atual',
 						routing: {
 							request: {
@@ -690,7 +1105,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get Many',
 						value: 'getMany',
-						action: 'Listar organiza es',
+						action: 'Listar organizações',
 						description: 'Recuperar múltiplas organizações',
 						routing: {
 							request: {
