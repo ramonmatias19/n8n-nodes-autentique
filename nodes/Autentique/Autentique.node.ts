@@ -76,7 +76,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Add Signatory',
 						value: 'addSignatory',
-						action: 'Adicionar signatário',
+						action: 'Add signatory',
 						description: 'Adicionar um novo signatário ao documento',
 						routing: {
 							request: {
@@ -103,9 +103,34 @@ export class Autentique implements INodeType {
 						},
 					},
 					{
+						name: 'Approve Biometric Verification',
+						value: 'approveBiometric',
+						action: 'Approve biometric verification',
+						description: 'Aprovar uma verificação biométrica pendente',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation approvePendingBiometricVerification($docId: ID!, $requestSignatureId: ID!) {
+										approvePendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId) {
+											id
+											status
+											verified_at
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										requestSignatureId: '={{$parameter["signatureId"]}}'
+									}
+								}
+							},
+						},
+					},
+					{
 						name: 'Create',
 						value: 'create',
-						action: 'Criar documento',
+						action: 'Create',
 						description: 'Criar um novo documento para assinatura',
 						routing: {
 							request: {
@@ -165,7 +190,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Create Signature Link',
 						value: 'createSignatureLink',
-						action: 'Criar link de assinatura',
+						action: 'Create signature link',
 						description: 'Criar um link direto para assinatura',
 						routing: {
 							request: {
@@ -189,7 +214,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Delete',
 						value: 'delete',
-						action: 'Deletar documento',
+						action: 'Delete',
 						description: 'Deletar um documento',
 						routing: {
 							request: {
@@ -212,7 +237,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Edit',
 						value: 'edit',
-						action: 'Editar documento',
+						action: 'Edit',
 						description: 'Editar informações de um documento',
 						routing: {
 							request: {
@@ -242,7 +267,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get',
 						value: 'get',
-						action: 'Obter documento',
+						action: 'Get',
 						description: 'Obter informações de um documento específico',
 						routing: {
 							request: {
@@ -280,7 +305,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get Many',
 						value: 'getMany',
-						action: 'Listar documentos',
+						action: 'Get many',
 						description: 'Recuperar múltiplos documentos',
 						routing: {
 							request: {
@@ -322,7 +347,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Move to Folder',
 						value: 'moveToFolder',
-						action: 'Mover documento para pasta',
+						action: 'Move to folder',
 						description: 'Mover um documento para uma pasta específica',
 						routing: {
 							request: {
@@ -348,9 +373,36 @@ export class Autentique implements INodeType {
 						},
 					},
 					{
+						name: 'Reject Biometric Verification',
+						value: 'rejectBiometric',
+						action: 'Reject biometric verification',
+						description: 'Rejeitar uma verificação biométrica pendente',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation rejectPendingBiometricVerification($docId: ID!, $requestSignatureId: ID!, $reason: String) {
+										rejectPendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId, reason: $reason) {
+											id
+											status
+											rejected_at
+											rejection_reason
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										requestSignatureId: '={{$parameter["signatureId"]}}',
+										reason: '={{$parameter["rejectionReason"] || undefined}}'
+									}
+								}
+							},
+						},
+					},
+					{
 						name: 'Remove Signatory',
 						value: 'removeSignatory',
-						action: 'Remover signatário',
+						action: 'Remove signatory',
 						description: 'Remover um signatário do documento',
 						routing: {
 							request: {
@@ -379,7 +431,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Resend Signatures',
 						value: 'resendSignatures',
-						action: 'Reenviar assinaturas',
+						action: 'Resend signatures',
 						description: 'Reenviar notificações de assinatura pendentes',
 						routing: {
 							request: {
@@ -405,9 +457,39 @@ export class Autentique implements INodeType {
 						},
 					},
 					{
+						name: 'Send via WhatsApp Flow',
+						value: 'sendWhatsAppFlow',
+						action: 'Send via whats app flow',
+						description: 'Enviar documento usando WhatsApp Flow',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `mutation sendDocumentWhatsAppFlow($docId: ID!, $phone: String!, $flowData: WhatsAppFlowInput) {
+										sendDocumentWhatsAppFlow(docId: $docId, phone: $phone, flowData: $flowData) {
+											id
+											name
+											signatures {
+												public_id
+												name
+												phone
+											}
+										}
+									}`,
+									variables: {
+										docId: '={{$parameter["documentId"]}}',
+										phone: '={{$parameter["phone"]}}',
+										flowData: '={{$parameter["flowData"] || undefined}}'
+									}
+								}
+							},
+						},
+					},
+					{
 						name: 'Sign',
 						value: 'sign',
-						action: 'Assinar documento',
+						action: 'Sign',
 						description: 'Assinar um documento específico',
 						routing: {
 							request: {
@@ -439,7 +521,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Transfer Document',
 						value: 'transferDocument',
-						action: 'Transferir documento',
+						action: 'Transfer document',
 						description: 'Transferir um documento para outro usuário ou organização',
 						routing: {
 							request: {
@@ -460,88 +542,6 @@ export class Autentique implements INodeType {
 									variables: {
 										docId: '={{$parameter["documentId"]}}',
 										receiverEmail: '={{$parameter["receiverEmail"]}}'
-									}
-								}
-							},
-						},
-					},
-					{
-						name: 'Send via WhatsApp Flow',
-						value: 'sendWhatsAppFlow',
-						action: 'Enviar via WhatsApp Flow',
-						description: 'Enviar documento usando WhatsApp Flow',
-						routing: {
-							request: {
-								method: 'POST',
-								url: '/graphql',
-								body: {
-									query: `mutation sendDocumentWhatsAppFlow($docId: ID!, $phone: String!, $flowData: WhatsAppFlowInput) {
-										sendDocumentWhatsAppFlow(docId: $docId, phone: $phone, flowData: $flowData) {
-											id
-											name
-											signatures {
-												public_id
-												name
-												phone
-											}
-										}
-									}`,
-									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										phone: '={{$parameter["phone"]}}',
-										flowData: '={{$parameter["flowData"] || undefined}}'
-									}
-								}
-							},
-						},
-					},
-					{
-						name: 'Approve Biometric Verification',
-						value: 'approveBiometric',
-						action: 'Aprovar verificação biométrica',
-						description: 'Aprovar uma verificação biométrica pendente',
-						routing: {
-							request: {
-								method: 'POST',
-								url: '/graphql',
-								body: {
-									query: `mutation approvePendingBiometricVerification($docId: ID!, $requestSignatureId: ID!) {
-										approvePendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId) {
-											id
-											status
-											verified_at
-										}
-									}`,
-									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}'
-									}
-								}
-							},
-						},
-					},
-					{
-						name: 'Reject Biometric Verification',
-						value: 'rejectBiometric',
-						action: 'Rejeitar verificação biométrica',
-						description: 'Rejeitar uma verificação biométrica pendente',
-						routing: {
-							request: {
-								method: 'POST',
-								url: '/graphql',
-								body: {
-									query: `mutation rejectPendingBiometricVerification($docId: ID!, $requestSignatureId: ID!, $reason: String) {
-										rejectPendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId, reason: $reason) {
-											id
-											status
-											rejected_at
-											rejection_reason
-										}
-									}`,
-									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}',
-										reason: '={{$parameter["rejectionReason"] || undefined}}'
 									}
 								}
 							},
@@ -626,7 +626,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Se o documento pode ser recusado',
+				description: 'Whether the document can be refused',
 			},
 			{
 				displayName: 'Sortable',
@@ -639,7 +639,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Se as assinaturas devem seguir uma ordem específica',
+				description: 'Whether signatures must follow a specific order',
 			},
 
 			// Advanced Document Creation Fields
@@ -735,7 +735,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Ativa assinatura qualificada usando certificados digitais',
+				description: 'Whether to enable qualified signature using digital certificates',
 			},
 			{
 				displayName: 'Scrolling Required',
@@ -748,7 +748,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Exige que o signatário role toda a página antes de assinar',
+				description: 'Whether to require the signatory to scroll through the entire page before signing',
 			},
 			{
 				displayName: 'Stop on Rejected',
@@ -761,7 +761,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Impede que outras pessoas assinem quando o documento for recusado',
+				description: 'Whether to stop other people from signing when the document is refused',
 			},
 			{
 				displayName: 'New Signature Style',
@@ -774,7 +774,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Ativa novos campos de assinatura',
+				description: 'Whether to enable new signature fields',
 			},
 			{
 				displayName: 'Show Audit Page',
@@ -787,7 +787,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: true,
-				description: 'Exibe a página de auditoria no final do documento',
+				description: 'Whether to show the audit page at the end of the document',
 			},
 			{
 				displayName: 'Ignore CPF',
@@ -800,7 +800,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Remove obrigatoriedade de preencher CPF para assinar',
+				description: 'Whether to remove the requirement to fill in CPF to sign',
 			},
 			{
 				displayName: 'Ignore Birthdate',
@@ -813,7 +813,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Remove obrigatoriedade de preencher data de nascimento',
+				description: 'Whether to remove the requirement to fill in birthdate',
 			},
 			{
 				displayName: 'Deadline',
@@ -899,7 +899,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: 50,
-				description: 'Número máximo de resultados a retornar',
+				description: 'Max number of results to return',
 				typeOptions: {
 					minValue: 1,
 				},
@@ -1064,7 +1064,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get Current',
 						value: 'getCurrent',
-						action: 'Obter usuário atual',
+						action: 'Get current',
 						description: 'Obter informações do usuário atual',
 						routing: {
 							request: {
@@ -1105,7 +1105,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get Many',
 						value: 'getMany',
-						action: 'Listar organizações',
+						action: 'Get many',
 						description: 'Recuperar múltiplas organizações',
 						routing: {
 							request: {
@@ -1144,7 +1144,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Get Many',
 						value: 'getMany',
-						action: 'Listar pastas',
+						action: 'Get many',
 						description: 'Recuperar múltiplas pastas',
 						routing: {
 							request: {
@@ -1165,7 +1165,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Create',
 						value: 'create',
-						action: 'Criar pasta',
+						action: 'Create',
 						description: 'Criar uma nova pasta',
 						routing: {
 							request: {
@@ -1191,7 +1191,7 @@ export class Autentique implements INodeType {
 					{
 						name: 'Delete',
 						value: 'delete',
-						action: 'Deletar pasta',
+						action: 'Delete',
 						description: 'Deletar uma pasta',
 						routing: {
 							request: {
