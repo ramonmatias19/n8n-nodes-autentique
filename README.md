@@ -152,6 +152,37 @@ Para utilizar o nosso **Community Node**, é necessário atender aos seguintes r
 	</details>
 </details>
 
+<h3>🔔 Webhooks</h3>
+📡 Este recurso oferece funcionalidades completas para receber notificações em tempo real de eventos da Autentique através de webhooks. Com ele, você pode monitorar assinaturas de documentos, rejeições, criação de novos documentos e outros eventos importantes, permitindo automações instantâneas baseadas no status dos seus documentos.
+<br>
+<details>
+  <summary><b>Lista de operações</b></summary>
+	<details>
+  	<summary>   ✅ <b> Documento Assinado</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Documento Rejeitado</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Signatário Assinou</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Signatário Rejeitou</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Documento Criado</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Filtros Personalizados</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Validação de Segurança</b></summary>
+	</details>
+	<details>
+  	<summary>   ✅ <b> Configuração Flexível</b></summary>
+	</details>
+</details>
+
 <h1></h1>
 
 <h3>🚀 Instalação</h3>
@@ -166,6 +197,21 @@ Para utilizar o nosso **Community Node**, é necessário atender aos seguintes r
 ```bash
 npm install n8n-nodes-autentique
 ```
+
+### 📡 Configuração de Webhooks
+
+Para receber notificações em tempo real da Autentique:
+
+1. **Configure o Trigger**: Use o nó "Autentique Trigger" em seus workflows
+2. **Configure na Autentique**: Os webhooks precisam ser configurados manualmente no painel da Autentique
+3. **Documentação**: Consulte o arquivo [`WEBHOOK_SETUP.md`](WEBHOOK_SETUP.md) para instruções detalhadas
+
+**Eventos suportados:**
+- Documento totalmente assinado
+- Documento rejeitado  
+- Signatário individual assinou
+- Signatário rejeitou assinatura
+- Novo documento criado
 
 <h1></h1>
 
