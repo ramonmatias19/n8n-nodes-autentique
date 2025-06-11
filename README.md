@@ -6,6 +6,7 @@ Este Community Node é uma solução 100% gratuita, criada com o intuito de simp
 <br>
 	
 <div align="center">
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.npmjs.org%2Fdownloads%2Fpoint%2Flast-year%2Fn8n-nodes-autentique&query=downloads&style=for-the-badge&label=Total%20de%20Downloads&labelColor=%230d1117&color=%23359514&cacheSeconds=30&link=https%3A%2F%2Fwww.npmjs.com%2Fpackage%2Fn8n-nodes-agendor" alt="Downloads Badge">
   <img src="https://img.shields.io/npm/v/n8n-nodes-autentique?style=for-the-badge&label=Versão&labelColor=%230d1117&color=%23007ACC" alt="Version Badge">
   <img src="https://img.shields.io/npm/l/n8n-nodes-autentique?style=for-the-badge&label=Licença&labelColor=%230d1117&color=%23FFA500" alt="License Badge">
 </div>
