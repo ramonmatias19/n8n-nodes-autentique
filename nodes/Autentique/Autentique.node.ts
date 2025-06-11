@@ -41,9 +41,14 @@ export class Autentique implements INodeType {
 						description: 'Gerenciar documentos para assinatura',
 					},
 					{
-						name: 'User',
-						value: 'users',
-						description: 'Gerenciar informações do usuário',
+						name: 'Email Template',
+						value: 'emailTemplates',
+						description: 'Gerenciar modelos de email',
+					},
+					{
+						name: 'Folder',
+						value: 'folders',
+						description: 'Gerenciar pastas de documentos',
 					},
 					{
 						name: 'Organization',
@@ -51,9 +56,9 @@ export class Autentique implements INodeType {
 						description: 'Gerenciar organizações',
 					},
 					{
-						name: 'Folder',
-						value: 'folders',
-						description: 'Gerenciar pastas de documentos',
+						name: 'User',
+						value: 'users',
+						description: 'Gerenciar informações do usuário',
 					},
 				],
 				default: 'documents',
@@ -339,6 +344,72 @@ export class Autentique implements INodeType {
 									variables: {
 										limit: '={{$parameter["limit"] || 20}}',
 										page: '={{$parameter["page"] || 1}}'
+									}
+								}
+							},
+						},
+					},
+					{
+						name: 'Search',
+						value: 'search',
+						action: 'Search documents',
+						description: 'Buscar documentos com filtros avançados',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `query DocumentsSearchQuery($search: String, $status: String, $folder_id: ID, $limit: Int, $page: Int, $order_by: String, $order_direction: String) {
+										documents(
+											search: $search,
+											status: $status,
+											folder_id: $folder_id,
+											limit: $limit,
+											page: $page,
+											order_by: $order_by,
+											order_direction: $order_direction
+										) {
+											data {
+												id
+												name
+												refusable
+												sortable
+												created_at
+												updated_at
+												status
+												signatures {
+													public_id
+													name
+													email
+													created_at
+													action {
+														name
+													}
+													user {
+														id
+														name
+														email
+													}
+												}
+												folder {
+													id
+													name
+												}
+											}
+											total
+											per_page
+											current_page
+											last_page
+										}
+									}`,
+									variables: {
+										search: '={{$parameter["searchTerm"] || undefined}}',
+										status: '={{$parameter["documentStatus"] || undefined}}',
+										folder_id: '={{$parameter["searchFolderId"] || undefined}}',
+										limit: '={{$parameter["limit"] || 20}}',
+										page: '={{$parameter["page"] || 1}}',
+										order_by: '={{$parameter["orderBy"] || "created_at"}}',
+										order_direction: '={{$parameter["orderDirection"] || "desc"}}'
 									}
 								}
 							},
@@ -895,7 +966,7 @@ export class Autentique implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['documents'],
-						operation: ['getMany'],
+						operation: ['getMany', 'search'],
 					},
 				},
 				default: 50,
@@ -911,7 +982,7 @@ export class Autentique implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['documents'],
-						operation: ['getMany'],
+						operation: ['getMany', 'search'],
 					},
 				},
 				default: 1,
@@ -919,6 +990,131 @@ export class Autentique implements INodeType {
 				typeOptions: {
 					minValue: 1,
 				},
+			},
+
+			// Search parameters
+			{
+				displayName: 'Search Term',
+				name: 'searchTerm',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['search'],
+					},
+				},
+				default: '',
+				description: 'Termo de busca no nome do documento',
+				placeholder: 'Contrato de Serviços',
+			},
+			{
+				displayName: 'Document Status',
+				name: 'documentStatus',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['search'],
+					},
+				},
+				options: [
+					{
+						name: 'All',
+						value: '',
+						description: 'Todos os status',
+					},
+					{
+						name: 'Draft',
+						value: 'draft',
+						description: 'Rascunho',
+					},
+					{
+						name: 'Pending',
+						value: 'pending',
+						description: 'Pendente de assinatura',
+					},
+					{
+						name: 'Signed',
+						value: 'signed',
+						description: 'Assinado',
+					},
+					{
+						name: 'Rejected',
+						value: 'rejected',
+						description: 'Rejeitado',
+					},
+					{
+						name: 'Expired',
+						value: 'expired',
+						description: 'Expirado',
+					},
+				],
+				default: '',
+				description: 'Status do documento',
+			},
+			{
+				displayName: 'Search Folder ID',
+				name: 'searchFolderId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['search'],
+					},
+				},
+				default: '',
+				description: 'ID da pasta para filtrar documentos (opcional)',
+				placeholder: 'folder_xxxxx',
+			},
+			{
+				displayName: 'Order By',
+				name: 'orderBy',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['search'],
+					},
+				},
+				options: [
+					{
+						name: 'Created At',
+						value: 'created_at',
+					},
+					{
+						name: 'Updated At',
+						value: 'updated_at',
+					},
+					{
+						name: 'Name',
+						value: 'name',
+					},
+				],
+				default: 'created_at',
+				description: 'Campo para ordenação',
+			},
+			{
+				displayName: 'Order Direction',
+				name: 'orderDirection',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['search'],
+					},
+				},
+				options: [
+					{
+						name: 'Descending',
+						value: 'desc',
+					},
+					{
+						name: 'Ascending',
+						value: 'asc',
+					},
+				],
+				default: 'desc',
+				description: 'Direção da ordenação',
 			},
 
 			// Transfer Document fields
@@ -1045,6 +1241,49 @@ export class Autentique implements INodeType {
 				],
 				default: '',
 				description: 'Contexto da pasta (para pastas de organização ou grupo)',
+			},
+
+			// ===========================================
+			// EMAIL TEMPLATES OPERATIONS
+			// ===========================================
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['emailTemplates'],
+					},
+				},
+				options: [
+					{
+						name: 'Get Many',
+						value: 'getMany',
+						action: 'Get many',
+						description: 'Listar modelos de email disponíveis',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `query EmailTemplatesQuery {
+										emailTemplates {
+											id
+											name
+											subject
+											body
+											created_at
+											updated_at
+											is_default
+										}
+									}`
+								}
+							},
+						},
+					},
+				],
+				default: 'getMany',
 			},
 
 			// ===========================================
