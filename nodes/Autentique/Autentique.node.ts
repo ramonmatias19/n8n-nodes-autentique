@@ -350,72 +350,6 @@ export class Autentique implements INodeType {
 						},
 					},
 					{
-						name: 'Search',
-						value: 'search',
-						action: 'Search documents',
-						description: 'Buscar documentos com filtros avançados',
-						routing: {
-							request: {
-								method: 'POST',
-								url: '/graphql',
-								body: {
-									query: `query DocumentsSearchQuery($search: String, $status: String, $folder_id: ID, $limit: Int, $page: Int, $order_by: String, $order_direction: String) {
-										documents(
-											search: $search,
-											status: $status,
-											folder_id: $folder_id,
-											limit: $limit,
-											page: $page,
-											order_by: $order_by,
-											order_direction: $order_direction
-										) {
-											data {
-												id
-												name
-												refusable
-												sortable
-												created_at
-												updated_at
-												status
-												signatures {
-													public_id
-													name
-													email
-													created_at
-													action {
-														name
-													}
-													user {
-														id
-														name
-														email
-													}
-												}
-												folder {
-													id
-													name
-												}
-											}
-											total
-											per_page
-											current_page
-											last_page
-										}
-									}`,
-									variables: {
-										search: '={{$parameter["searchTerm"] || undefined}}',
-										status: '={{$parameter["documentStatus"] || undefined}}',
-										folder_id: '={{$parameter["searchFolderId"] || undefined}}',
-										limit: '={{$parameter["limit"] || 20}}',
-										page: '={{$parameter["page"] || 1}}',
-										order_by: '={{$parameter["orderBy"] || "created_at"}}',
-										order_direction: '={{$parameter["orderDirection"] || "desc"}}'
-									}
-								}
-							},
-						},
-					},
-					{
 						name: 'Move to Folder',
 						value: 'moveToFolder',
 						action: 'Move to folder',
@@ -522,6 +456,72 @@ export class Autentique implements INodeType {
 									}`,
 									variables: {
 										docId: '={{$parameter["documentId"]}}'
+									}
+								}
+							},
+						},
+					},
+					{
+						name: 'Search',
+						value: 'search',
+						action: 'Search documents',
+						description: 'Buscar documentos com filtros avançados',
+						routing: {
+							request: {
+								method: 'POST',
+								url: '/graphql',
+								body: {
+									query: `query DocumentsSearchQuery($search: String, $status: String, $folder_id: ID, $limit: Int, $page: Int, $order_by: String, $order_direction: String) {
+										documents(
+											search: $search,
+											status: $status,
+											folder_id: $folder_id,
+											limit: $limit,
+											page: $page,
+											order_by: $order_by,
+											order_direction: $order_direction
+										) {
+											data {
+												id
+												name
+												refusable
+												sortable
+												created_at
+												updated_at
+												status
+												signatures {
+													public_id
+													name
+													email
+													created_at
+													action {
+														name
+													}
+													user {
+														id
+														name
+														email
+													}
+												}
+												folder {
+													id
+													name
+												}
+											}
+											total
+											per_page
+											current_page
+											last_page
+										}
+									}`,
+									variables: {
+										search: '={{$parameter["searchTerm"] || undefined}}',
+										status: '={{$parameter["documentStatus"] || undefined}}',
+										folder_id: '={{$parameter["searchFolderId"] || undefined}}',
+										limit: '={{$parameter["limit"] || 20}}',
+										page: '={{$parameter["page"] || 1}}',
+										order_by: '={{$parameter["orderBy"] || "created_at"}}',
+										order_direction: '={{$parameter["orderDirection"] || "desc"}}'
 									}
 								}
 							},
@@ -1029,14 +1029,14 @@ export class Autentique implements INodeType {
 						description: 'Rascunho',
 					},
 					{
+						name: 'Expired',
+						value: 'expired',
+						description: 'Expirado',
+					},
+					{
 						name: 'Pending',
 						value: 'pending',
 						description: 'Pendente de assinatura',
-					},
-					{
-						name: 'Signed',
-						value: 'signed',
-						description: 'Assinado',
 					},
 					{
 						name: 'Rejected',
@@ -1044,9 +1044,9 @@ export class Autentique implements INodeType {
 						description: 'Rejeitado',
 					},
 					{
-						name: 'Expired',
-						value: 'expired',
-						description: 'Expirado',
+						name: 'Signed',
+						value: 'signed',
+						description: 'Assinado',
 					},
 				],
 				default: '',
