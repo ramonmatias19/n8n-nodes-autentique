@@ -142,7 +142,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $organization_id: Int, $folder_id: String) {
+									query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $organization_id: Int, $folder_id: UUID) {
 										createDocument(
 											document: $document,
 											signers: $signers,
