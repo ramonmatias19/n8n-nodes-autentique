@@ -2,45 +2,6 @@
 
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 
-## [2.0.2] - 2024-12-19
-
-### 🐛 Bug Fixes
-
-#### **Linting Compliance**
-- ✅ **Fixed ESLint Errors**: Corrected boolean parameter descriptions to start with "Whether"
-  - Fixed sandbox mode description
-  - Fixed showSandbox parameter description  
-  - Fixed onlySandbox parameter description
-- ✅ **Build Process**: Resolved all linting issues preventing successful build
-
-### 🔧 Technical Improvements
-- ✅ **Code Quality**: Enhanced compliance with n8n-nodes-base linting rules
-- ✅ **Build Stability**: Ensured clean build process without errors
-
-## [2.0.1] - 2024-12-19
-
-### 🔧 Enhanced
-
-#### **Compliance with Official Documentation**
-- ✅ **Sandbox Mode Support**: Added complete sandbox support according to official Autentique documentation
-  - Added `sandbox` parameter to document creation
-  - Added `showSandbox` and `onlySandbox` parameters to document listing
-  - Follows official API specifications for testing without consuming credits
-
-#### **API Compliance Improvements**
-- ✅ **100% Documentation Compliance**: All API calls now match the official Autentique GraphQL specification
-- ✅ **Proper Parameter Handling**: Enhanced parameter validation and optional parameter handling
-- ✅ **Testing Support**: Complete sandbox mode implementation for safe testing
-
-### 📊 **API Coverage Analysis**
-- **Base URL**: ✅ `https://api.autentique.com.br/v2/graphql` (matches documentation)
-- **Authentication**: ✅ `Bearer` token authentication (matches documentation)
-- **GraphQL Structure**: ✅ Proper GraphQL queries and mutations
-- **Sandbox Support**: ✅ Complete sandbox implementation
-- **Rate Limiting**: ✅ Compliant with 60 requests/minute limit
-
-**Overall Compliance: 100% with Official Documentation**
-
 ## [2.0.0] - 2024-12-19
 
 ### 🎉 Major Feature Release

@@ -142,14 +142,13 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $organization_id: Int, $folder_id: UUID, $sandbox: Boolean) {
+									query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $organization_id: Int, $folder_id: UUID) {
 										createDocument(
 											document: $document,
 											signers: $signers,
 											file: $file,
 											organization_id: $organization_id,
-											folder_id: $folder_id,
-											sandbox: $sandbox
+											folder_id: $folder_id
 										) {
 											id
 											name
@@ -187,8 +186,7 @@ export class Autentique implements INodeType {
 										signers: '={{$parameter["signatures"]}}',
 										file: null,
 										organization_id: '={{$parameter["organizationId"] || undefined}}',
-										folder_id: '={{$parameter["createInFolderId"] || undefined}}',
-										sandbox: '={{$parameter["sandbox"] || false}}'
+										folder_id: '={{$parameter["createInFolderId"] || undefined}}'
 									}
 								}
 							},
@@ -319,8 +317,8 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `query DocumentsQuery($limit: Int, $page: Int, $showSandbox: Boolean, $onlySandbox: Boolean) {
-										documents(limit: $limit, page: $page, showSandbox: $showSandbox, onlySandbox: $onlySandbox) {
+									query: `query DocumentsQuery($limit: Int, $page: Int) {
+										documents(limit: $limit, page: $page) {
 											data {
 												id
 												name
@@ -345,9 +343,7 @@ export class Autentique implements INodeType {
 									}`,
 									variables: {
 										limit: '={{$parameter["limit"] || 20}}',
-										page: '={{$parameter["page"] || 1}}',
-										showSandbox: '={{$parameter["showSandbox"] || false}}',
-										onlySandbox: '={{$parameter["onlySandbox"] || false}}'
+										page: '={{$parameter["page"] || 1}}'
 									}
 								}
 							},
@@ -839,19 +835,6 @@ export class Autentique implements INodeType {
 				description: 'Whether to stop other people from signing when the document is refused',
 			},
 			{
-				displayName: 'Sandbox Mode',
-				name: 'sandbox',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['documents'],
-						operation: ['create'],
-					},
-				},
-				default: false,
-				description: 'Whether to create document in sandbox mode for testing (won\'t consume credits and will be deleted after a few days)',
-			},
-			{
 				displayName: 'New Signature Style',
 				name: 'newSignatureStyle',
 				type: 'boolean',
@@ -1007,32 +990,6 @@ export class Autentique implements INodeType {
 				typeOptions: {
 					minValue: 1,
 				},
-			},
-			{
-				displayName: 'Show Sandbox Documents',
-				name: 'showSandbox',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['documents'],
-						operation: ['getMany'],
-					},
-				},
-				default: false,
-				description: 'Whether to include sandbox documents in the results',
-			},
-			{
-				displayName: 'Only Sandbox Documents',
-				name: 'onlySandbox',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['documents'],
-						operation: ['getMany'],
-					},
-				},
-				default: false,
-				description: 'Whether to return only sandbox documents',
 			},
 
 			// Search parameters
