@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 
+## [2.0.2] - 2024-12-19
+
+### 🐛 Bug Fixes
+
+#### **Linting Compliance**
+- ✅ **Fixed ESLint Errors**: Corrected boolean parameter descriptions to start with "Whether"
+  - Fixed sandbox mode description
+  - Fixed showSandbox parameter description  
+  - Fixed onlySandbox parameter description
+- ✅ **Build Process**: Resolved all linting issues preventing successful build
+
+### 🔧 Technical Improvements
+- ✅ **Code Quality**: Enhanced compliance with n8n-nodes-base linting rules
+- ✅ **Build Stability**: Ensured clean build process without errors
+
 ## [2.0.1] - 2024-12-19
 
 ### 🔧 Enhanced

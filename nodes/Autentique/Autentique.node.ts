@@ -849,7 +849,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Create document in sandbox mode for testing (won\'t consume credits and will be deleted after a few days)',
+				description: 'Whether to create document in sandbox mode for testing (won\'t consume credits and will be deleted after a few days)',
 			},
 			{
 				displayName: 'New Signature Style',
@@ -1019,7 +1019,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Include sandbox documents in the results',
+				description: 'Whether to include sandbox documents in the results',
 			},
 			{
 				displayName: 'Only Sandbox Documents',
@@ -1032,7 +1032,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Return only sandbox documents',
+				description: 'Whether to return only sandbox documents',
 			},
 
 			// Search parameters
