@@ -2,6 +2,27 @@
 
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 
+## [2.0.3] - 2024-12-19
+
+### 📦 **NPM Package Fixes**
+
+#### **README Visibility Issue**
+- ✅ **CORRIGIDO**: README.md não aparecia na página do NPM
+- ✅ **ADICIONADO**: README.md, CHANGELOG.md e WEBHOOK_SETUP.md aos arquivos do pacote
+- ✅ **MELHORADO**: Documentação agora visível para usuários do NPM
+- ✅ **CONFORMIDADE**: Seguindo melhores práticas de publicação NPM
+
+#### **Arquivos Incluídos no Pacote**
+- ✅ **dist/**: Código compilado
+- ✅ **README.md**: Documentação principal
+- ✅ **CHANGELOG.md**: Histórico de mudanças
+- ✅ **WEBHOOK_SETUP.md**: Guia de configuração de webhooks
+
+### 🔧 **Melhorias Técnicas**
+- ✅ **Package.json**: Configuração correta da seção `files`
+- ✅ **Documentação**: Melhor experiência para novos usuários
+- ✅ **Visibilidade**: README agora aparece corretamente no NPM
+
 ## [2.0.0] - 2024-12-19
 
 ### 🎉 Major Feature Release

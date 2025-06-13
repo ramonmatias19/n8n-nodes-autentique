@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-autentique",
-  "version": "1.1.5",
+  "version": "2.0.3",
   "description": "Node customizado do n8n para integração com Autentique",
   "keywords": [
     "n8n-community-node-package",
@@ -29,7 +29,10 @@
     "prepublishOnly": "npm run build && npm run lint -s"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "WEBHOOK_SETUP.md"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
