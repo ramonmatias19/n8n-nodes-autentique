@@ -1,4 +1,4 @@
-﻿import { INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+﻿import { IExecuteSingleFunctions, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 
 export class Autentique implements INodeType {
 	description: INodeTypeDescription = {
@@ -87,24 +87,62 @@ export class Autentique implements INodeType {
 							request: {
 								method: 'POST',
 								url: '/graphql',
-								body: {
-									query: `mutation addSignatory($docId: ID!, $signatory: SignatoryInput!) {
-										addSignatory(docId: $docId, signatory: $signatory) {
-											id
-											name
-											signatures {
+							},
+							send: {
+								preSend: [
+									async function(this: IExecuteSingleFunctions, requestOptions: any) {
+										const documentId = this.getNodeParameter('documentId') as string;
+										const contactMethod = this.getNodeParameter('signatoryContactMethod') as string;
+										const action = this.getNodeParameter('signatoryAction') as string;
+										const name = this.getNodeParameter('signatoryName', '') as string;
+										
+										// Construir objeto signer baseado no método de contato
+										const signer: any = { action };
+										
+										if (contactMethod === 'email') {
+											const email = this.getNodeParameter('signatoryEmail') as string;
+											signer.email = email;
+										} else if (contactMethod === 'phone') {
+											const phone = this.getNodeParameter('signatoryPhone') as string;
+											const deliveryMethod = this.getNodeParameter('signatoryDeliveryMethod') as string;
+											signer.phone = phone;
+											signer.delivery_method = deliveryMethod;
+										} else if (contactMethod === 'name') {
+											signer.name = name;
+										}
+										
+										// Adicionar nome se fornecido (exceto quando é o método principal)
+										if (name && contactMethod !== 'name') {
+											signer.name = name;
+										}
+										
+										const query = `mutation createSigner($document_id: UUID!, $signer: SignerInput!) {
+											createSigner(document_id: $document_id, signer: $signer) {
 												public_id
 												name
 												email
+												delivery_method
+												action { name }
+												link {
+													id
+													short_link
+												}
+												created_at
 											}
-										}
-									}`,
-									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										signatory: '={{$parameter["signatory"]}}'
+										}`;
+										
+										requestOptions.body = {
+											query,
+											variables: {
+												document_id: documentId,
+												signer
+											}
+										};
+										
+										return requestOptions;
 									}
-								}
-							},
+								]
+							}
 						},
 					},
 					{
@@ -117,16 +155,31 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation approvePendingBiometricVerification($docId: ID!, $requestSignatureId: ID!) {
-										approvePendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId) {
-											id
-											status
-											verified_at
+									query: `mutation approveBiometric($verification_id: Int!, $public_id: UUID!) {
+										approveBiometric(verification_id: $verification_id, public_id: $public_id) {
+											public_id
+											name
+											email
+											delivery_method
+											user {
+												id
+												name
+												email
+												phone
+											}
+											verifications {
+												id
+												type
+												verify_phone
+												verified_at
+												max_attempt
+												logs_attempt
+											}
 										}
 									}`,
 									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}'
+										verification_id: '={{$parameter["verificationId"]}}',
+										public_id: '={{$parameter["signatureId"]}}'
 									}
 								}
 							},
@@ -141,55 +194,158 @@ export class Autentique implements INodeType {
 							request: {
 								method: 'POST',
 								url: '/graphql',
-								body: {
-									query: `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $organization_id: Int, $folder_id: UUID) {
-										createDocument(
-											document: $document,
-											signers: $signers,
-											file: $file,
-											organization_id: $organization_id,
-											folder_id: $folder_id
-										) {
-											id
-											name
-											refusable
-											sortable
-											created_at
-											signatures {
-												public_id
-												name
-												email
-												created_at
-												action { name }
-												link { short_link }
-												user { id name email }
+								headers: {},
+							},
+							send: {
+								preSend: [
+									// Seguindo exatamente a documentação oficial da API Autentique v2
+									async function(this: IExecuteSingleFunctions, requestOptions: any) {
+										const FormData = require('form-data');
+										const form = new FormData();
+										
+										// Obter parâmetros
+										const documentName = this.getNodeParameter('documentName') as string;
+										const fileContent = this.getNodeParameter('fileContent') as string;
+										const signatures = this.getNodeParameter('signatures') as string;
+										const message = this.getNodeParameter('message', '') as string;
+										const reminder = this.getNodeParameter('reminder', '') as string;
+										const sortable = this.getNodeParameter('sortable', false) as boolean;
+										const footer = this.getNodeParameter('footer', '') as string;
+										const refusable = this.getNodeParameter('refusable', false) as boolean;
+										const qualified = this.getNodeParameter('qualified', false) as boolean;
+										const scrollingRequired = this.getNodeParameter('scrollingRequired', false) as boolean;
+										const stopOnRejected = this.getNodeParameter('stopOnRejected', false) as boolean;
+										const newSignatureStyle = this.getNodeParameter('newSignatureStyle', false) as boolean;
+										const showAuditPage = this.getNodeParameter('showAuditPage', true) as boolean;
+										const ignoreCpf = this.getNodeParameter('ignoreCpf', false) as boolean;
+										const ignoreBirthdate = this.getNodeParameter('ignoreBirthdate', false) as boolean;
+										const deadlineAt = this.getNodeParameter('deadlineAt', '') as string;
+										
+										// Parse signatários
+										const parsedSignatures = JSON.parse(signatures).map((s: any) => ({
+											...s,
+											action: s.action || 'SIGN'
+										}));
+										
+										// Preparar dados do documento conforme documentação
+										const documentData: any = {
+											name: documentName,
+										};
+										
+										// Adicionar campos opcionais apenas se tiverem valores
+										if (message) documentData.message = message;
+										if (reminder) documentData.reminder = reminder;
+										if (footer) documentData.footer = footer;
+										if (deadlineAt) {
+											// Garantir formato ISO 8601 com timezone conforme documentação da API
+											// Exemplo da documentação: "2023-11-24T02:59:59.999Z"
+											let formattedDeadline = deadlineAt.trim();
+											
+											try {
+												// Converter para objeto Date para validação e formatação
+												let dateObj;
+												
+												// Se não tem timezone, assumir que é local e converter para UTC
+												if (!formattedDeadline.includes('Z') && 
+													!formattedDeadline.includes('+') && 
+													!(formattedDeadline.includes('-') && formattedDeadline.lastIndexOf('-') > 10)) {
+													// Adicionar Z para UTC
+													dateObj = new Date(formattedDeadline + 'Z');
+												} else {
+													dateObj = new Date(formattedDeadline);
+												}
+												
+												if (isNaN(dateObj.getTime())) {
+													throw new Error('Data inválida');
+												}
+												
+												// Formatar exatamente como no exemplo da documentação: "2023-11-24T02:59:59.999Z"
+												formattedDeadline = dateObj.toISOString();
+												
+												// Verificar se a data é no futuro
+												const now = new Date();
+												if (dateObj <= now) {
+													console.warn('AVISO: deadline_at está no passado ou muito próximo do presente:', formattedDeadline);
+												}
+												
+												documentData.deadline_at = formattedDeadline;
+												
+												// Log para debug (remover em produção)
+												console.log('DEBUG - deadline_at original:', deadlineAt);
+												console.log('DEBUG - deadline_at formatado:', formattedDeadline);
+												
+											} catch (error) {
+												throw new Error(`Erro ao processar deadline_at: ${deadlineAt}. ${error.message}. Use formato ISO 8601: YYYY-MM-DDTHH:mm:ss`);
 											}
 										}
-									}`,
-									variables: {
-										document: {
-											name: '={{$parameter["documentName"]}}',
-											message: '={{$parameter["message"] || undefined}}',
-											reminder: '={{$parameter["reminder"] || undefined}}',
-											sortable: '={{$parameter["sortable"] || false}}',
-											footer: '={{$parameter["footer"] || undefined}}',
-											refusable: '={{$parameter["refusable"] || false}}',
-											qualified: '={{$parameter["qualified"] || false}}',
-											scrolling_required: '={{$parameter["scrollingRequired"] || false}}',
-											stop_on_rejected: '={{$parameter["stopOnRejected"] || false}}',
-											new_signature_style: '={{$parameter["newSignatureStyle"] || false}}',
-											show_audit_page: '={{$parameter["showAuditPage"] !== false}}',
-											ignore_cpf: '={{$parameter["ignoreCpf"] || false}}',
-											ignore_birthdate: '={{$parameter["ignoreBirthdate"] || false}}',
-											deadline_at: '={{$parameter["deadlineAt"] || undefined}}'
-										},
-										signers: '={{$parameter["signatures"]}}',
-										file: null,
-										organization_id: '={{$parameter["organizationId"] || undefined}}',
-										folder_id: '={{$parameter["createInFolderId"] || undefined}}'
+										if (sortable) documentData.sortable = sortable;
+										if (refusable) documentData.refusable = refusable;
+										if (qualified) documentData.qualified = qualified;
+										if (scrollingRequired) documentData.scrolling_required = scrollingRequired;
+										if (stopOnRejected) documentData.stop_on_rejected = stopOnRejected;
+										if (newSignatureStyle) documentData.new_signature_style = newSignatureStyle;
+										if (!showAuditPage) documentData.show_audit_page = showAuditPage;
+										if (ignoreCpf) documentData.ignore_cpf = ignoreCpf;
+										if (ignoreBirthdate) documentData.ignore_birthdate = ignoreBirthdate;
+										
+										// Query GraphQL exatamente como na documentação
+										const query = `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
+											createDocument(document: $document, signers: $signers, file: $file) {
+												id
+												name
+												refusable
+												sortable
+												created_at
+												signatures {
+													public_id
+													name
+													email
+													created_at
+													action { name }
+													link { short_link }
+													user { id name email }
+												}
+											}
+										}`;
+										
+										// Variáveis exatamente como na documentação
+										const variables: any = {
+											document: documentData,
+											signers: parsedSignatures,
+											file: null
+										};
+										
+										// Preparar multipart/form-data exatamente como na documentação
+										form.append('operations', JSON.stringify({
+											query,
+											variables
+										}));
+										
+										form.append('map', JSON.stringify({
+											file: ['variables.file']
+										}));
+										
+										// Converter arquivo base64 para buffer
+										const fileBuffer = Buffer.from(fileContent, 'base64');
+										form.append('file', fileBuffer, {
+											filename: 'document.pdf',
+											contentType: 'application/pdf'
+										});
+										
+										// Configurar requisição para multipart
+										requestOptions.body = form;
+										requestOptions.headers = {
+											...requestOptions.headers,
+											...form.getHeaders()
+										};
+										
+										// Remover Content-Type para que form-data defina automaticamente
+										delete requestOptions.headers['Content-Type'];
+										
+										return requestOptions;
 									}
-								}
-							},
+								]
+							}
 						},
 					},
 					{
@@ -202,15 +358,13 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation createSignatureLink($docId: ID!, $requestSignatureId: ID!) {
-										createSignatureLink(docId: $docId, requestSignatureId: $requestSignatureId) {
-											link
-											expires_at
+									query: `mutation createLinkToSignature($public_id: UUID!) {
+										createLinkToSignature(public_id: $public_id) {
+											short_link
 										}
 									}`,
 									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}'
+										public_id: '={{$parameter["signatureId"]}}'
 									}
 								}
 							},
@@ -226,7 +380,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation DeleteDocumentMutation($id: ID!) {
+									query: `mutation DeleteDocumentMutation($id: UUID!) {
 										deleteDocument(id: $id) {
 											id
 											name
@@ -248,25 +402,85 @@ export class Autentique implements INodeType {
 							request: {
 								method: 'POST',
 								url: '/graphql',
-								body: {
-									query: `mutation editDocument($id: ID!, $document: DocumentEditInput!) {
-										editDocument(id: $id, document: $document) {
-											id
-											name
-											refusable
-											sortable
-										}
-									}`,
-									variables: {
-										id: '={{$parameter["documentId"]}}',
-										document: {
-											name: '={{$parameter["documentName"] || undefined}}',
-											refusable: '={{$parameter["refusable"] || undefined}}',
-											sortable: '={{$parameter["sortable"] || undefined}}'
-										}
-									}
-								}
 							},
+							send: {
+								preSend: [
+									async function(this: IExecuteSingleFunctions, requestOptions: any) {
+										// Obter parâmetros
+										const documentId = this.getNodeParameter('documentId') as string;
+										const documentName = this.getNodeParameter('documentName', '') as string;
+										const message = this.getNodeParameter('message', '') as string;
+										const reminder = this.getNodeParameter('reminder', '') as string;
+										const refusable = this.getNodeParameter('refusable', undefined) as boolean | undefined;
+										const sortable = this.getNodeParameter('sortable', undefined) as boolean | undefined;
+										const stopOnRejected = this.getNodeParameter('stopOnRejected', undefined) as boolean | undefined;
+										const newSignatureStyle = this.getNodeParameter('newSignatureStyle', undefined) as boolean | undefined;
+										const showAuditPage = this.getNodeParameter('showAuditPage', undefined) as boolean | undefined;
+										const deadlineAt = this.getNodeParameter('deadlineAt', '') as string;
+										const footer = this.getNodeParameter('footer', '') as string;
+										
+										// Construir objeto document
+										const documentData: any = {};
+										
+										// Adicionar campos apenas se tiverem valores
+										if (documentName) documentData.name = documentName;
+										if (message) documentData.message = message;
+										if (reminder) documentData.reminder = reminder;
+										if (refusable !== undefined) documentData.refusable = refusable;
+										if (sortable !== undefined) documentData.sortable = sortable;
+										if (stopOnRejected !== undefined) documentData.stop_on_rejected = stopOnRejected;
+										if (newSignatureStyle !== undefined) documentData.new_signature_style = newSignatureStyle;
+										if (showAuditPage !== undefined) documentData.show_audit_page = showAuditPage;
+										if (footer) documentData.footer = footer;
+										
+										if (deadlineAt) {
+											try {
+												// Converter para objeto Date para validação e formatação
+												const dateObj = new Date(deadlineAt);
+												if (isNaN(dateObj.getTime())) {
+													throw new Error('Data inválida');
+												}
+												
+												// Converter para formato ISO 8601 completo conforme documentação da API
+												const formattedDeadline = dateObj.toISOString();
+												documentData.deadline_at = formattedDeadline;
+												
+												// Log para debug (remover em produção)
+												console.log('DEBUG - deadline_at formatado para edit:', formattedDeadline);
+											} catch (error) {
+												throw new Error(`Erro ao processar deadline_at: ${error.message}. Use formato de data válido (ex: "2025-06-30T10:00:00" ou "2025-06-30")`);
+											}
+										}
+										
+										const query = `mutation updateDocument($id: UUID!, $document: UpdateDocumentInput!) {
+											updateDocument(id: $id, document: $document) {
+												id
+												name
+												message
+												reminder
+												refusable
+												sortable
+												stop_on_rejected
+												new_signature_style
+												show_audit_page
+												deadline_at
+												footer
+												created_at
+											}
+										}`;
+										
+										requestOptions.body = {
+											query,
+											variables: {
+												id: documentId,
+												document: documentData
+											}
+										};
+										
+										return requestOptions;
+									}
+								]
+							}
 						},
 					},
 					{
@@ -279,7 +493,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `query DocumentQuery($id: ID!) {
+									query: `query DocumentQuery($id: UUID!) {
 										document(id: $id) {
 											id
 											name
@@ -359,7 +573,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation moveDocumentToFolder($document_id: ID!, $folder_id: ID, $current_folder_id: ID, $context: String) {
+									query: `mutation moveDocumentToFolder($document_id: UUID!, $folder_id: UUID, $current_folder_id: UUID, $context: String) {
 										moveDocumentToFolder(
 											document_id: $document_id,
 											folder_id: $folder_id,
@@ -387,18 +601,31 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation rejectPendingBiometricVerification($docId: ID!, $requestSignatureId: ID!, $reason: String) {
-										rejectPendingBiometricVerification(docId: $docId, requestSignatureId: $requestSignatureId, reason: $reason) {
-											id
-											status
-											rejected_at
-											rejection_reason
+									query: `mutation rejectBiometric($verification_id: Int!, $public_id: UUID!) {
+										rejectBiometric(verification_id: $verification_id, public_id: $public_id) {
+											public_id
+											name
+											email
+											delivery_method
+											user {
+												id
+												name
+												email
+												phone
+											}
+											verifications {
+												id
+												type
+												verify_phone
+												verified_at
+												max_attempt
+												logs_attempt
+											}
 										}
 									}`,
 									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}',
-										reason: '={{$parameter["rejectionReason"] || undefined}}'
+										verification_id: '={{$parameter["verificationId"]}}',
+										public_id: '={{$parameter["signatureId"]}}'
 									}
 								}
 							},
@@ -414,20 +641,12 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation removeSignatory($docId: ID!, $requestSignatureId: ID!) {
-										removeSignatory(docId: $docId, requestSignatureId: $requestSignatureId) {
-											id
-											name
-											signatures {
-												public_id
-												name
-												email
-											}
-										}
+									query: `mutation deleteSigner($public_id: UUID!, $document_id: UUID!) {
+										deleteSigner(public_id: $public_id, document_id: $document_id)
 									}`,
 									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}'
+										public_id: '={{$parameter["signatureId"]}}',
+										document_id: '={{$parameter["documentId"]}}'
 									}
 								}
 							},
@@ -443,19 +662,11 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation resendSignatures($docId: ID!) {
-										resendSignatures(docId: $docId) {
-											id
-											name
-											signatures {
-												public_id
-												name
-												email
-											}
-										}
+									query: `mutation resendSignatures($public_ids: [UUID!]!) {
+										resendSignatures(public_ids: $public_ids)
 									}`,
 									variables: {
-										docId: '={{$parameter["documentId"]}}'
+										public_ids: '={{$parameter["signatureIds"]}}'
 									}
 								}
 							},
@@ -471,7 +682,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `query DocumentsSearchQuery($search: String, $status: String, $folder_id: ID, $limit: Int, $page: Int, $order_by: String, $order_direction: String) {
+									query: `query DocumentsSearchQuery($search: String, $status: String, $folder_id: UUID, $limit: Int, $page: Int, $order_by: String, $order_direction: String) {
 										documents(
 											search: $search,
 											status: $status,
@@ -537,7 +748,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation sendDocumentWhatsAppFlow($docId: ID!, $phone: String!, $flowData: WhatsAppFlowInput) {
+									query: `mutation sendDocumentWhatsAppFlow($docId: UUID!, $phone: String!, $flowData: WhatsAppFlowInput) {
 										sendDocumentWhatsAppFlow(docId: $docId, phone: $phone, flowData: $flowData) {
 											id
 											name
@@ -567,23 +778,11 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation SignDocumentMutation($docId: ID!, $requestSignatureId: ID!) {
-										signDocument(docId: $docId, requestSignatureId: $requestSignatureId) {
-											id
-											name
-											signatures {
-												public_id
-												name
-												email
-												action {
-													name
-												}
-											}
-										}
+									query: `mutation SignDocumentMutation($id: UUID!) {
+										signDocument(id: $id)
 									}`,
 									variables: {
-										docId: '={{$parameter["documentId"]}}',
-										requestSignatureId: '={{$parameter["signatureId"]}}'
+										id: '={{$parameter["documentId"]}}'
 									}
 								}
 							},
@@ -599,7 +798,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation transferDocument($docId: ID!, $receiverEmail: String!) {
+									query: `mutation transferDocument($docId: UUID!, $receiverEmail: String!) {
 										transferDocument(docId: $docId, receiverEmail: $receiverEmail) {
 											id
 											name
@@ -631,12 +830,29 @@ export class Autentique implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['documents'],
-						operation: ['get', 'sign', 'delete', 'moveToFolder', 'edit', 'addSignatory', 'removeSignatory', 'createSignatureLink', 'resendSignatures', 'transferDocument', 'sendWhatsAppFlow', 'approveBiometric', 'rejectBiometric'],
+						operation: ['get', 'delete', 'moveToFolder', 'edit', 'addSignatory', 'removeSignatory', 'createSignatureLink', 'transferDocument', 'sendWhatsAppFlow', 'approveBiometric', 'rejectBiometric'],
 					},
 				},
 				default: '',
 				description: 'O ID do documento',
 				placeholder: 'doc_xxxxx',
+			},
+			{
+				displayName: 'Signature IDs',
+				name: 'signatureIds',
+				type: 'json',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['resendSignatures'],
+					},
+				},
+				default: '["434fcd4c6d0c11eea3c542010a2b60c6"]',
+				description: 'Array de IDs públicos das assinaturas a serem reenviadas. Exemplo: ["434fcd4c6d0c11eea3c542010a2b60c6", "534fcd4c6d0c11eea3c542010a2b60c7"]',
+				typeOptions: {
+					rows: 3,
+				},
 			},
 			{
 				displayName: 'Document Name',
@@ -664,7 +880,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: '',
-				description: 'Conteúdo do arquivo em formato Base64',
+				description: 'Conteúdo do arquivo em formato Base64. Formatos aceitos: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ODT, ODS, ODP, RTF, HTML, TXT. Máximo: 20MB. Use o node "Read Binary File" para converter um arquivo em Base64.',
 				typeOptions: {
 					rows: 4,
 				},
@@ -680,8 +896,8 @@ export class Autentique implements INodeType {
 						operation: ['create'],
 					},
 				},
-				default: '[{"name": "João Silva", "email": "joao@exemplo.com"}]',
-				description: 'Array de assinantes em formato JSON',
+				default: '[{"name": "João Silva", "email": "joao@exemplo.com", "action": "SIGN"}]',
+				description: 'Array de assinantes em formato JSON. Cada signatário deve ter: name/email, action (SIGN, APPROVE, SIGN_AS_A_WITNESS, RECOGNIZE). Exemplo: [{"name": "João Silva", "email": "joao@exemplo.com", "action": "SIGN"}]',
 				typeOptions: {
 					rows: 4,
 				},
@@ -711,6 +927,139 @@ export class Autentique implements INodeType {
 				},
 				default: false,
 				description: 'Whether signatures must follow a specific order',
+			},
+			{
+				displayName: 'Message',
+				name: 'message',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				default: '',
+				description: 'Mensagem customizada enviada para os emails dos signatários',
+				typeOptions: {
+					rows: 3,
+				},
+			},
+			{
+				displayName: 'Reminder',
+				name: 'reminder',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				options: [
+					{
+						name: 'None',
+						value: '',
+						description: 'Sem lembretes automáticos',
+					},
+					{
+						name: 'Daily',
+						value: 'DAILY',
+						description: 'Lembrete diário',
+					},
+					{
+						name: 'Weekly',
+						value: 'WEEKLY',
+						description: 'Lembrete semanal',
+					},
+				],
+				default: '',
+				description: 'Frequência de lembretes automáticos',
+			},
+			{
+				displayName: 'Stop on Rejected',
+				name: 'stopOnRejected',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				default: false,
+				description: 'Impede que outras pessoas assinem quando recusado',
+			},
+			{
+				displayName: 'New Signature Style',
+				name: 'newSignatureStyle',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				default: false,
+				description: 'Se true, ativa o uso de um estilo de assinatura atualizado',
+			},
+			{
+				displayName: 'Show Audit Page',
+				name: 'showAuditPage',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				default: true,
+				description: 'Evita criar a última página de auditoria (requer new_signature_style: true)',
+			},
+			{
+				displayName: 'Deadline At',
+				name: 'deadlineAt',
+				type: 'dateTime',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				default: '',
+				description: 'Data limite para a assinatura do documento (formato ISO 8601)',
+			},
+			{
+				displayName: 'Footer Position',
+				name: 'footer',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['edit'],
+					},
+				},
+				options: [
+					{
+						name: 'None',
+						value: '',
+						description: 'Sem rodapé',
+					},
+					{
+						name: 'Bottom',
+						value: 'BOTTOM',
+						description: 'Rodapé na parte inferior',
+					},
+					{
+						name: 'Left',
+						value: 'LEFT',
+						description: 'Rodapé à esquerda',
+					},
+					{
+						name: 'Right',
+						value: 'RIGHT',
+						description: 'Rodapé à direita',
+					},
+				],
+				default: '',
+				description: 'Posição do rodapé no documento',
 			},
 
 			// Advanced Document Creation Fields
@@ -939,13 +1288,28 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: '',
-				description: 'ID da assinatura',
-				placeholder: 'sig_xxxxx',
+				description: 'ID público da assinatura (public_id). Obtenha este valor na resposta da criação do documento ou na operação "Get Document" no campo signatures.public_id',
+				placeholder: '434fcd4c6d0c11eea3c542010a2b60c6',
 			},
 			{
-				displayName: 'Signatory',
-				name: 'signatory',
-				type: 'json',
+				displayName: 'Verification ID',
+				name: 'verificationId',
+				type: 'number',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['approveBiometric', 'rejectBiometric'],
+					},
+				},
+				default: 0,
+				description: 'ID da verificação biométrica a ser aprovada ou rejeitada. Obtenha este valor no campo verifications.id da resposta da operação "Get Document"',
+				placeholder: '430555',
+			},
+			{
+				displayName: 'Contact Method',
+				name: 'signatoryContactMethod',
+				type: 'options',
 				required: true,
 				displayOptions: {
 					show: {
@@ -953,11 +1317,134 @@ export class Autentique implements INodeType {
 						operation: ['addSignatory'],
 					},
 				},
-				default: '{"name": "João Silva", "email": "joao@exemplo.com"}',
-				description: 'Dados do signatário em formato JSON',
-				typeOptions: {
-					rows: 3,
+				options: [
+					{
+						name: 'Email',
+						value: 'email',
+						description: 'Usar email para contato',
+					},
+					{
+						name: 'Phone',
+						value: 'phone',
+						description: 'Usar telefone para contato',
+					},
+					{
+						name: 'Name Only',
+						value: 'name',
+						description: 'Apenas nome (gera link)',
+					},
+				],
+				default: 'email',
+				description: 'Método de contato com o signatário',
+			},
+			{
+				displayName: 'Signatory Email',
+				name: 'signatoryEmail',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['addSignatory'],
+						signatoryContactMethod: ['email'],
+					},
 				},
+				default: '',
+				description: 'Email do signatário',
+				placeholder: 'joao@exemplo.com',
+			},
+			{
+				displayName: 'Signatory Phone',
+				name: 'signatoryPhone',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['addSignatory'],
+						signatoryContactMethod: ['phone'],
+					},
+				},
+				default: '',
+				description: 'Telefone do signatário (formato: +5511999999999)',
+				placeholder: '+5511999999999',
+			},
+			{
+				displayName: 'Signatory Name',
+				name: 'signatoryName',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['addSignatory'],
+					},
+				},
+				default: '',
+				description: 'Nome do signatário (opcional para email/phone, obrigatório para name only)',
+				placeholder: 'João Silva',
+			},
+			{
+				displayName: 'Action',
+				name: 'signatoryAction',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['addSignatory'],
+					},
+				},
+				options: [
+					{
+						name: 'Sign',
+						value: 'SIGN',
+						description: 'Assinar o documento',
+					},
+					{
+						name: 'Approve',
+						value: 'APPROVE',
+						description: 'Aprovar o documento',
+					},
+					{
+						name: 'Sign as Witness',
+						value: 'SIGN_AS_A_WITNESS',
+						description: 'Assinar como testemunha',
+					},
+					{
+						name: 'Recognize',
+						value: 'RECOGNIZE',
+						description: 'Reconhecer assinatura',
+					},
+				],
+				default: 'SIGN',
+				description: 'Ação que o signatário deve realizar',
+			},
+			{
+				displayName: 'Delivery Method',
+				name: 'signatoryDeliveryMethod',
+				type: 'options',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['documents'],
+						operation: ['addSignatory'],
+						signatoryContactMethod: ['phone'],
+					},
+				},
+				options: [
+					{
+						name: 'WhatsApp',
+						value: 'DELIVERY_METHOD_WHATSAPP',
+						description: 'Enviar por WhatsApp',
+					},
+					{
+						name: 'SMS',
+						value: 'DELIVERY_METHOD_SMS',
+						description: 'Enviar por SMS',
+					},
+				],
+				default: 'DELIVERY_METHOD_WHATSAPP',
+				description: 'Método de entrega do convite de assinatura (obrigatório para telefone)',
 			},
 			{
 				displayName: 'Limit',
@@ -1390,13 +1877,20 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `query FoldersQuery {
-										folders {
-											id
-											name
-											created_at
+									query: `query FoldersQuery($limit: Int!, $page: Int!) {
+										folders(limit: $limit, page: $page) {
+											total
+											data {
+												id
+												name
+												created_at
+											}
 										}
-									}`
+									}`,
+									variables: {
+										limit: '={{$parameter["limit"] || 10}}',
+										page: '={{$parameter["page"] || 1}}'
+									}
 								}
 							},
 						},
@@ -1437,7 +1931,7 @@ export class Autentique implements INodeType {
 								method: 'POST',
 								url: '/graphql',
 								body: {
-									query: `mutation DeleteFolderMutation($id: ID!) {
+									query: `mutation DeleteFolderMutation($id: UUID!) {
 										deleteFolder(id: $id) {
 											id
 											name
@@ -1455,6 +1949,39 @@ export class Autentique implements INodeType {
 			},
 
 			// Folder fields
+			{
+				displayName: 'Limit',
+				name: 'limit',
+				type: 'number',
+				displayOptions: {
+					show: {
+						resource: ['folders'],
+						operation: ['getMany'],
+					},
+				},
+				default: 10,
+				description: 'Número máximo de pastas a retornar (1-100)',
+				typeOptions: {
+					minValue: 1,
+					maxValue: 100,
+				},
+			},
+			{
+				displayName: 'Page',
+				name: 'page',
+				type: 'number',
+				displayOptions: {
+					show: {
+						resource: ['folders'],
+						operation: ['getMany'],
+					},
+				},
+				default: 1,
+				description: 'Número da página (começando em 1)',
+				typeOptions: {
+					minValue: 1,
+				},
+			},
 			{
 				displayName: 'Folder Name',
 				name: 'folderName',
@@ -1488,6 +2015,7 @@ export class Autentique implements INodeType {
 		],
 	};
 }
+
 
 
 
