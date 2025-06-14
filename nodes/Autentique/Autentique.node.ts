@@ -1,4 +1,4 @@
-﻿import { IExecuteSingleFunctions, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+﻿import { IExecuteSingleFunctions, INodeType, INodeTypeDescription, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 
 export class Autentique implements INodeType {
 	description: INodeTypeDescription = {
@@ -256,7 +256,7 @@ export class Autentique implements INodeType {
 												}
 												
 												if (isNaN(dateObj.getTime())) {
-													throw new Error('Data inválida');
+													throw new NodeOperationError(this.getNode(), 'Data inválida');
 												}
 												
 												// Formatar exatamente como no exemplo da documentação: "2023-11-24T02:59:59.999Z"
@@ -275,7 +275,7 @@ export class Autentique implements INodeType {
 												console.log('DEBUG - deadline_at formatado:', formattedDeadline);
 												
 											} catch (error) {
-												throw new Error(`Erro ao processar deadline_at: ${deadlineAt}. ${error.message}. Use formato ISO 8601: YYYY-MM-DDTHH:mm:ss`);
+												throw new NodeOperationError(this.getNode(), `Erro ao processar deadline_at: ${deadlineAt}. ${error.message}. Use formato ISO 8601: YYYY-MM-DDTHH:mm:ss`);
 											}
 										}
 										if (sortable) documentData.sortable = sortable;
@@ -438,7 +438,7 @@ export class Autentique implements INodeType {
 												// Converter para objeto Date para validação e formatação
 												const dateObj = new Date(deadlineAt);
 												if (isNaN(dateObj.getTime())) {
-													throw new Error('Data inválida');
+													throw new NodeOperationError(this.getNode(), 'Data inválida');
 												}
 												
 												// Converter para formato ISO 8601 completo conforme documentação da API
@@ -448,7 +448,7 @@ export class Autentique implements INodeType {
 												// Log para debug (remover em produção)
 												console.log('DEBUG - deadline_at formatado para edit:', formattedDeadline);
 											} catch (error) {
-												throw new Error(`Erro ao processar deadline_at: ${error.message}. Use formato de data válido (ex: "2025-06-30T10:00:00" ou "2025-06-30")`);
+												throw new NodeOperationError(this.getNode(), `Erro ao processar deadline_at: ${error.message}. Use formato de data válido (ex: "2025-06-30T10:00:00" ou "2025-06-30")`);
 											}
 										}
 										
@@ -849,7 +849,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: '["434fcd4c6d0c11eea3c542010a2b60c6"]',
-				description: 'Array de IDs públicos das assinaturas a serem reenviadas. Exemplo: ["434fcd4c6d0c11eea3c542010a2b60c6", "534fcd4c6d0c11eea3c542010a2b60c7"]',
+				description: 'Array de IDs públicos das assinaturas a serem reenviadas. Exemplo: ["434fcd4c6d0c11eea3c542010a2b60c6", "534fcd4c6d0c11eea3c542010a2b60c7"].',
 				typeOptions: {
 					rows: 3,
 				},
@@ -880,7 +880,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: '',
-				description: 'Conteúdo do arquivo em formato Base64. Formatos aceitos: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ODT, ODS, ODP, RTF, HTML, TXT. Máximo: 20MB. Use o node "Read Binary File" para converter um arquivo em Base64.',
+				description: 'Conteúdo do arquivo em formato Base64. Formatos aceitos: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ODT, ODS, ODP, RTF, HTML, TXT. Máximo: 20MB. Use o node "Read Binary File" para converter um arquivo em Base64',
 				typeOptions: {
 					rows: 4,
 				},
@@ -985,7 +985,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Impede que outras pessoas assinem quando recusado',
+				description: 'Whether to stop when document is rejected',
 			},
 			{
 				displayName: 'New Signature Style',
@@ -998,7 +998,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Se true, ativa o uso de um estilo de assinatura atualizado',
+				description: 'Whether to use new signature style',
 			},
 			{
 				displayName: 'Show Audit Page',
@@ -1011,7 +1011,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: true,
-				description: 'Evita criar a última página de auditoria (requer new_signature_style: true)',
+				description: 'Whether to show audit page (requires new_signature_style: true)',
 			},
 			{
 				displayName: 'Deadline At',
@@ -1288,7 +1288,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: '',
-				description: 'ID público da assinatura (public_id). Obtenha este valor na resposta da criação do documento ou na operação "Get Document" no campo signatures.public_id',
+				description: 'ID público da assinatura (public_id). Obtenha este valor na resposta da criação do documento ou na operação "Get Document" no campo signatures.public_id.',
 				placeholder: '434fcd4c6d0c11eea3c542010a2b60c6',
 			},
 			{
@@ -1303,7 +1303,7 @@ export class Autentique implements INodeType {
 					},
 				},
 				default: 0,
-				description: 'ID da verificação biométrica a ser aprovada ou rejeitada. Obtenha este valor no campo verifications.id da resposta da operação "Get Document"',
+				description: 'ID da verificação biométrica a ser aprovada ou rejeitada. Obtenha este valor no campo verifications.ID da resposta da operação "Get Document".',
 				placeholder: '430555',
 			},
 			{
@@ -1959,11 +1959,10 @@ export class Autentique implements INodeType {
 						operation: ['getMany'],
 					},
 				},
-				default: 10,
-				description: 'Número máximo de pastas a retornar (1-100)',
+				default: 50,
+				description: 'Max number of results to return',
 				typeOptions: {
 					minValue: 1,
-					maxValue: 100,
 				},
 			},
 			{
