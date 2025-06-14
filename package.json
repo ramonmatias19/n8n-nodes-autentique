@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-autentique",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "Node customizado do n8n para integração com Autentique",
   "keywords": [
     "n8n-community-node-package",
