@@ -1,11 +1,11 @@
-﻿import { IExecuteSingleFunctions, INodeType, INodeTypeDescription, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+﻿import { INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 
 export class Autentique implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Autentique',
 		name: 'autentique',
 		icon: 'file:logo.svg',
-		group: ['transform'],
+		group: ['tool'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Trabalhe com dados da API do Autentique para assinaturas digitais',
@@ -14,6 +14,7 @@ export class Autentique implements INodeType {
 		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'autentiqueApi',
@@ -87,61 +88,30 @@ export class Autentique implements INodeType {
 							request: {
 								method: 'POST',
 								url: '/graphql',
-							},
-							send: {
-								preSend: [
-									async function(this: IExecuteSingleFunctions, requestOptions: any) {
-										const documentId = this.getNodeParameter('documentId') as string;
-										const contactMethod = this.getNodeParameter('signatoryContactMethod') as string;
-										const action = this.getNodeParameter('signatoryAction') as string;
-										const name = this.getNodeParameter('signatoryName', '') as string;
-										
-										// Construir objeto signer baseado no método de contato
-										const signer: any = { action };
-										
-										if (contactMethod === 'email') {
-											const email = this.getNodeParameter('signatoryEmail') as string;
-											signer.email = email;
-										} else if (contactMethod === 'phone') {
-											const phone = this.getNodeParameter('signatoryPhone') as string;
-											const deliveryMethod = this.getNodeParameter('signatoryDeliveryMethod') as string;
-											signer.phone = phone;
-											signer.delivery_method = deliveryMethod;
-										} else if (contactMethod === 'name') {
-											signer.name = name;
-										}
-										
-										// Adicionar nome se fornecido (exceto quando é o método principal)
-										if (name && contactMethod !== 'name') {
-											signer.name = name;
-										}
-										
-										const query = `mutation createSigner($document_id: UUID!, $signer: SignerInput!) {
-											createSigner(document_id: $document_id, signer: $signer) {
-												public_id
-												name
-												email
-												delivery_method
-												action { name }
-												link {
-													id
-													short_link
-												}
-												created_at
+								body: {
+									query: `mutation createSigner($document_id: UUID!, $signer: SignerInput!) {
+										createSigner(document_id: $document_id, signer: $signer) {
+											public_id
+											name
+											email
+											delivery_method
+											action { name }
+											link {
+												id
+												short_link
 											}
-										}`;
-										
-										requestOptions.body = {
-											query,
-											variables: {
-												document_id: documentId,
-												signer
-											}
-										};
-										
-										return requestOptions;
+											created_at
+										}
+									}`,
+									variables: {
+										document_id: '={{$parameter["documentId"]}}',
+										signer: {
+											action: '={{$parameter["signatoryAction"]}}',
+											email: '={{$parameter["signatoryEmail"]}}',
+											name: '={{$parameter["signatoryName"]}}'
+										}
 									}
-								]
+								}
 							}
 						},
 					},
@@ -196,156 +166,7 @@ export class Autentique implements INodeType {
 								url: '/graphql',
 								headers: {},
 							},
-							send: {
-								preSend: [
-									// Seguindo exatamente a documentação oficial da API Autentique v2
-									async function(this: IExecuteSingleFunctions, requestOptions: any) {
-										const FormData = require('form-data');
-										const form = new FormData();
-										
-										// Obter parâmetros
-										const documentName = this.getNodeParameter('documentName') as string;
-										const fileContent = this.getNodeParameter('fileContent') as string;
-										const signatures = this.getNodeParameter('signatures') as string;
-										const message = this.getNodeParameter('message', '') as string;
-										const reminder = this.getNodeParameter('reminder', '') as string;
-										const sortable = this.getNodeParameter('sortable', false) as boolean;
-										const footer = this.getNodeParameter('footer', '') as string;
-										const refusable = this.getNodeParameter('refusable', false) as boolean;
-										const qualified = this.getNodeParameter('qualified', false) as boolean;
-										const scrollingRequired = this.getNodeParameter('scrollingRequired', false) as boolean;
-										const stopOnRejected = this.getNodeParameter('stopOnRejected', false) as boolean;
-										const newSignatureStyle = this.getNodeParameter('newSignatureStyle', false) as boolean;
-										const showAuditPage = this.getNodeParameter('showAuditPage', true) as boolean;
-										const ignoreCpf = this.getNodeParameter('ignoreCpf', false) as boolean;
-										const ignoreBirthdate = this.getNodeParameter('ignoreBirthdate', false) as boolean;
-										const deadlineAt = this.getNodeParameter('deadlineAt', '') as string;
-										
-										// Parse signatários
-										const parsedSignatures = JSON.parse(signatures).map((s: any) => ({
-											...s,
-											action: s.action || 'SIGN'
-										}));
-										
-										// Preparar dados do documento conforme documentação
-										const documentData: any = {
-											name: documentName,
-										};
-										
-										// Adicionar campos opcionais apenas se tiverem valores
-										if (message) documentData.message = message;
-										if (reminder) documentData.reminder = reminder;
-										if (footer) documentData.footer = footer;
-										if (deadlineAt) {
-											// Garantir formato ISO 8601 com timezone conforme documentação da API
-											// Exemplo da documentação: "2023-11-24T02:59:59.999Z"
-											let formattedDeadline = deadlineAt.trim();
-											
-											try {
-												// Converter para objeto Date para validação e formatação
-												let dateObj;
-												
-												// Se não tem timezone, assumir que é local e converter para UTC
-												if (!formattedDeadline.includes('Z') && 
-													!formattedDeadline.includes('+') && 
-													!(formattedDeadline.includes('-') && formattedDeadline.lastIndexOf('-') > 10)) {
-													// Adicionar Z para UTC
-													dateObj = new Date(formattedDeadline + 'Z');
-												} else {
-													dateObj = new Date(formattedDeadline);
-												}
-												
-												if (isNaN(dateObj.getTime())) {
-													throw new NodeOperationError(this.getNode(), 'Data inválida');
-												}
-												
-												// Formatar exatamente como no exemplo da documentação: "2023-11-24T02:59:59.999Z"
-												formattedDeadline = dateObj.toISOString();
-												
-												// Verificar se a data é no futuro
-												const now = new Date();
-												if (dateObj <= now) {
-													console.warn('AVISO: deadline_at está no passado ou muito próximo do presente:', formattedDeadline);
-												}
-												
-												documentData.deadline_at = formattedDeadline;
-												
-												// Log para debug (remover em produção)
-												console.log('DEBUG - deadline_at original:', deadlineAt);
-												console.log('DEBUG - deadline_at formatado:', formattedDeadline);
-												
-											} catch (error) {
-												throw new NodeOperationError(this.getNode(), `Erro ao processar deadline_at: ${deadlineAt}. ${error.message}. Use formato ISO 8601: YYYY-MM-DDTHH:mm:ss`);
-											}
-										}
-										if (sortable) documentData.sortable = sortable;
-										if (refusable) documentData.refusable = refusable;
-										if (qualified) documentData.qualified = qualified;
-										if (scrollingRequired) documentData.scrolling_required = scrollingRequired;
-										if (stopOnRejected) documentData.stop_on_rejected = stopOnRejected;
-										if (newSignatureStyle) documentData.new_signature_style = newSignatureStyle;
-										if (!showAuditPage) documentData.show_audit_page = showAuditPage;
-										if (ignoreCpf) documentData.ignore_cpf = ignoreCpf;
-										if (ignoreBirthdate) documentData.ignore_birthdate = ignoreBirthdate;
-										
-										// Query GraphQL exatamente como na documentação
-										const query = `mutation CreateDocumentMutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
-											createDocument(document: $document, signers: $signers, file: $file) {
-												id
-												name
-												refusable
-												sortable
-												created_at
-												signatures {
-													public_id
-													name
-													email
-													created_at
-													action { name }
-													link { short_link }
-													user { id name email }
-												}
-											}
-										}`;
-										
-										// Variáveis exatamente como na documentação
-										const variables: any = {
-											document: documentData,
-											signers: parsedSignatures,
-											file: null
-										};
-										
-										// Preparar multipart/form-data exatamente como na documentação
-										form.append('operations', JSON.stringify({
-											query,
-											variables
-										}));
-										
-										form.append('map', JSON.stringify({
-											file: ['variables.file']
-										}));
-										
-										// Converter arquivo base64 para buffer
-										const fileBuffer = Buffer.from(fileContent, 'base64');
-										form.append('file', fileBuffer, {
-											filename: 'document.pdf',
-											contentType: 'application/pdf'
-										});
-										
-										// Configurar requisição para multipart
-										requestOptions.body = form;
-										requestOptions.headers = {
-											...requestOptions.headers,
-											...form.getHeaders()
-										};
-										
-										// Remover Content-Type para que form-data defina automaticamente
-										delete requestOptions.headers['Content-Type'];
-										
-										return requestOptions;
-									}
-								]
-							}
+
 						},
 					},
 					{
@@ -402,84 +223,32 @@ export class Autentique implements INodeType {
 							request: {
 								method: 'POST',
 								url: '/graphql',
-							},
-							send: {
-								preSend: [
-									async function(this: IExecuteSingleFunctions, requestOptions: any) {
-										// Obter parâmetros
-										const documentId = this.getNodeParameter('documentId') as string;
-										const documentName = this.getNodeParameter('documentName', '') as string;
-										const message = this.getNodeParameter('message', '') as string;
-										const reminder = this.getNodeParameter('reminder', '') as string;
-										const refusable = this.getNodeParameter('refusable', undefined) as boolean | undefined;
-										const sortable = this.getNodeParameter('sortable', undefined) as boolean | undefined;
-										const stopOnRejected = this.getNodeParameter('stopOnRejected', undefined) as boolean | undefined;
-										const newSignatureStyle = this.getNodeParameter('newSignatureStyle', undefined) as boolean | undefined;
-										const showAuditPage = this.getNodeParameter('showAuditPage', undefined) as boolean | undefined;
-										const deadlineAt = this.getNodeParameter('deadlineAt', '') as string;
-										const footer = this.getNodeParameter('footer', '') as string;
-										
-										// Construir objeto document
-										const documentData: any = {};
-										
-										// Adicionar campos apenas se tiverem valores
-										if (documentName) documentData.name = documentName;
-										if (message) documentData.message = message;
-										if (reminder) documentData.reminder = reminder;
-										if (refusable !== undefined) documentData.refusable = refusable;
-										if (sortable !== undefined) documentData.sortable = sortable;
-										if (stopOnRejected !== undefined) documentData.stop_on_rejected = stopOnRejected;
-										if (newSignatureStyle !== undefined) documentData.new_signature_style = newSignatureStyle;
-										if (showAuditPage !== undefined) documentData.show_audit_page = showAuditPage;
-										if (footer) documentData.footer = footer;
-										
-										if (deadlineAt) {
-											try {
-												// Converter para objeto Date para validação e formatação
-												const dateObj = new Date(deadlineAt);
-												if (isNaN(dateObj.getTime())) {
-													throw new NodeOperationError(this.getNode(), 'Data inválida');
-												}
-												
-												// Converter para formato ISO 8601 completo conforme documentação da API
-												const formattedDeadline = dateObj.toISOString();
-												documentData.deadline_at = formattedDeadline;
-												
-												// Log para debug (remover em produção)
-												console.log('DEBUG - deadline_at formatado para edit:', formattedDeadline);
-											} catch (error) {
-												throw new NodeOperationError(this.getNode(), `Erro ao processar deadline_at: ${error.message}. Use formato de data válido (ex: "2025-06-30T10:00:00" ou "2025-06-30")`);
-											}
+								body: {
+									query: `mutation updateDocument($id: UUID!, $document: UpdateDocumentInput!) {
+										updateDocument(id: $id, document: $document) {
+											id
+											name
+											message
+											reminder
+											refusable
+											sortable
+											stop_on_rejected
+											new_signature_style
+											show_audit_page
+											deadline_at
+											footer
+											created_at
 										}
-										
-										const query = `mutation updateDocument($id: UUID!, $document: UpdateDocumentInput!) {
-											updateDocument(id: $id, document: $document) {
-												id
-												name
-												message
-												reminder
-												refusable
-												sortable
-												stop_on_rejected
-												new_signature_style
-												show_audit_page
-												deadline_at
-												footer
-												created_at
-											}
-										}`;
-										
-										requestOptions.body = {
-											query,
-											variables: {
-												id: documentId,
-												document: documentData
-											}
-										};
-										
-										return requestOptions;
+									}`,
+									variables: {
+										id: '={{$parameter["documentId"]}}',
+										document: {
+											name: '={{$parameter["documentName"]}}',
+											message: '={{$parameter["message"]}}',
+											reminder: '={{$parameter["reminder"]}}'
+										}
 									}
-								]
+								}
 							}
 						},
 					},
