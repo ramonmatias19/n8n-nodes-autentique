@@ -2,6 +2,59 @@
 
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 
+## [2.1.2] - 2025-12-27
+
+### 🔧 Fixed
+- **AI Tool Compatibility**: Removidas funções `preSend` incompatíveis com AI Tools
+  - **PROBLEMA**: Funções assíncronas não podiam ser clonadas pelo sistema de AI Tools
+  - **ERRO**: `DataCloneError: async function ... could not be cloned`
+  - **SOLUÇÃO**: Substituídas por roteamento estático compatível com `structuredClone`
+  - **OPERAÇÕES SIMPLIFICADAS**: "Add Signatory", "Create", "Edit" agora usam parâmetros diretos
+  - **COMPATIBILIDADE**: Node agora funciona perfeitamente como Tool no AI Agent
+
+### ⚠️ Breaking Changes
+- **Operação "Create"**: Removido upload de arquivos (funcionalidade complexa incompatível)
+- **Operação "Add Signatory"**: Simplificada para usar apenas email (sem lógica condicional)
+- **Operação "Edit"**: Campos limitados aos básicos (name, message, reminder)
+
+### 💡 Future Improvements
+- Considerar implementação alternativa para upload de arquivos compatível com AI Tools
+- Avaliar lógica condicional para signatários em versões futuras
+
+## [2.1.1] - 2025-12-27
+
+### 🐛 Fixed
+- **CRÍTICO**: Corrigido erro de carregamento do node no n8n
+  - **PROBLEMA**: Arquivo fantasma `AutentiqueTool.node.js` estava sendo criado e causando erro
+  - **ERRO**: `TypeError: require(...).AutentiqueTool is not a constructor`
+  - **SOLUÇÃO**: Removido arquivo residual e limpo cache de compilação
+  - **STATUS**: Node agora carrega corretamente no n8n sem erros
+  - **COMPATIBILIDADE**: Funcionalidade de Tool no AI Agent mantida intacta
+
+### 🔧 Technical
+- **Limpeza**: Removido arquivos residuais de compilação (`AutentiqueTool.node.*`)
+- **Build**: Processo de compilação otimizado e validado
+- **Qualidade**: Linter passa sem erros após correções
+
+## [2.1.0] - 2025-12-27
+
+### ✨ Added
+- **🤖 AI Agent Tool Support**: Node agora compatível como Tool no AI Agent do n8n
+  - **IMPLEMENTADO**: Propriedade `usableAsTool: true` na configuração do node
+  - **GRUPO ATUALIZADO**: Alterado de `['transform']` para `['tool']` para melhor categorização
+  - **COMPATIBILIDADE**: Funciona com versões recentes e nightly builds do n8n (≥ v1.79)
+  - **RECURSOS**: O node pode agora ser chamado diretamente pelo AI Agent como ferramenta
+  - **USO**: Aparecer na lista de ferramentas disponíveis no AI Agent Workflow
+
+### 🔧 Enhanced
+- **Categoria Otimizada**: Node agora aparece na categoria "Tool" para melhor descoberta
+- **AI Integration**: Preparado para uso em workflows automatizados com IA
+
+### 📋 Usage Notes
+- **Versão Necessária**: Requer n8n versão ≥ 1.79 ou nightly builds
+- **Instalação**: Reinstalar node após atualização para reconhecimento pelo AI Agent
+- **Configuração**: Reiniciar n8n após instalação para ativar funcionalidade de Tool
+
 ## [2.0.8] - 2025-06-13
 
 ### Fixed
