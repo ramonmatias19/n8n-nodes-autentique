@@ -2,6 +2,22 @@
 
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 
+## [2.1.4] - 2026-04-20
+
+### 🐛 Fixed
+- **CRÍTICO — Operação "Create" (Criar Documento)**: Corrigido erro `Solicitação inválida - verifique seus parâmetros. O servidor GraphQL espera um objeto ou array JSON, mas recebeu: .` (issue #2)
+  - **PROBLEMA**: Routing da operação estava sem `body`, resultando em payload vazio enviado à API GraphQL da Autentique
+  - **SOLUÇÃO**: Reintroduzido hook `preSend` dedicado (`createDocumentPreSend`) que monta requisição `multipart/form-data` conforme [GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec), exigida pelo scalar `Upload!` da mutation `createDocument`
+  - **CAMPOS SUPORTADOS**: name, file (Base64), signers, refusable, sortable, message, reminder, footer, qualified, scrolling_required, stop_on_rejected, new_signature_style, show_audit_page, ignore_cpf, ignore_birthdate, deadline_at, folder_id, organization_id
+  - **VALIDAÇÃO**: Mensagens de erro claras para Base64 inválido, buffer vazio, signatures sem JSON válido ou array vazio
+
+### ⚠️ Compatibility Note
+- A operação `Create` volta a depender de função `preSend` assíncrona. Se utilizada como AI Tool pelo AI Agent, a serialização de funções assíncronas pode falhar (ver 2.1.2). As demais operações permanecem 100% compatíveis com AI Tools.
+
+### 🔧 Technical
+- Adicionada dependência `form-data` (`^4.0.5`) para construção de corpo multipart
+- Build TypeScript e lint passando sem erros
+
 ## [2.1.2] - 2025-12-27
 
 ### 🔧 Fixed
@@ -70,7 +86,7 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
    - **ERROS IDENTIFICADOS**:
      - Campos `id`, `name`, `created_at` não existem em `FolderPagination`
      - Parâmetros `limit` e `page` são obrigatórios mas não estavam sendo enviados
-   - **SOLUÇÃO**: 
+   - **SOLUÇÃO**:
      - Corrigida estrutura da query para acessar `data` dentro de `FolderPagination`
      - Adicionados campos obrigatórios `limit` e `page` com valores padrão
      - Query corrigida: `folders(limit: $limit, page: $page) { data { id name created_at } }`
@@ -92,7 +108,7 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 
 #### **Operações Verificadas e Confirmadas como Corretas:**
 - ✅ **Create Document**: Usando `createDocument` - CORRETO
-- ✅ **Edit Document**: Usando `updateDocument` - CORRETO  
+- ✅ **Edit Document**: Usando `updateDocument` - CORRETO
 - ✅ **Delete Document**: Usando `deleteDocument` - CORRETO
 - ✅ **Transfer Document**: Usando `transferDocument` - CORRETO
 - ✅ **Add Signatory**: Usando `createSigner` - CORRETO
@@ -120,7 +136,7 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 - ✅ **CORRIGIDO**: Operação "Create Signature Link" estava com erro GraphQL
   - **PROBLEMA**: Mutation incorreta `createSignatureLink` não existe na API
   - **SOLUÇÃO**: Corrigido para `createLinkToSignature` conforme documentação oficial
-  - **PARÂMETROS CORRIGIDOS**: 
+  - **PARÂMETROS CORRIGIDOS**:
     - Removido `docId` e `requestSignatureId` (incorretos)
     - Implementado `public_id` (correto conforme API)
     - Corrigido tipo de `String!` para `UUID!` conforme especificação GraphQL
@@ -347,17 +363,17 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 ## Como Usar o Changelog
 
 - **✨ Novas Funcionalidades**: Recursos completamente novos
-- **🔧 Melhorias**: Aprimoramentos em funcionalidades existentes  
+- **🔧 Melhorias**: Aprimoramentos em funcionalidades existentes
 - **🐛 Correções**: Correções de bugs
 - **📚 Documentação**: Mudanças na documentação
 - **🛠️ Melhorias Técnicas**: Melhorias internas/técnicas
 - **⚠️ Breaking Changes**: Mudanças que podem quebrar compatibilidade
 
-Para mais informações sobre cada versão, consulte as [releases no GitHub](https://github.com/ramonmatias19/n8n-nodes-autentique/releases). 
+Para mais informações sobre cada versão, consulte as [releases no GitHub](https://github.com/ramonmatias19/n8n-nodes-autentique/releases).
 
 ## [1.0.0] - 2025-06-11
 
 ### ✨ Initial Release
 - Implementação inicial com recursos básicos de Documents, Users, Organizations e Folders
 - Sistema de webhook básico
-- Suporte completo para assinatura digital 
+- Suporte completo para assinatura digital

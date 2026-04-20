@@ -1,4 +1,149 @@
-﻿import { INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+﻿import {
+	IExecuteSingleFunctions,
+	IHttpRequestOptions,
+	INodeType,
+	INodeTypeDescription,
+	NodeConnectionType,
+	NodeOperationError,
+} from 'n8n-workflow';
+import FormData from 'form-data';
+
+async function createDocumentPreSend(
+	this: IExecuteSingleFunctions,
+	requestOptions: IHttpRequestOptions,
+): Promise<IHttpRequestOptions> {
+	const documentName = this.getNodeParameter('documentName') as string;
+	const fileContent = this.getNodeParameter('fileContent') as string;
+	const signaturesRaw = this.getNodeParameter('signatures') as string | object;
+
+	if (!fileContent) {
+		throw new NodeOperationError(this.getNode(), 'File Content (Base64) is required');
+	}
+
+	let signers: unknown;
+	try {
+		signers = typeof signaturesRaw === 'string' ? JSON.parse(signaturesRaw) : signaturesRaw;
+	} catch (error) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Signatures must be a valid JSON array. Example: [{"name":"João","email":"joao@exemplo.com","action":"SIGN"}]',
+		);
+	}
+	if (!Array.isArray(signers) || signers.length === 0) {
+		throw new NodeOperationError(this.getNode(), 'Signatures must be a non-empty JSON array');
+	}
+
+	const document: Record<string, unknown> = { name: documentName };
+
+	const refusable = this.getNodeParameter('refusable', false) as boolean;
+	if (refusable) document.refusable = true;
+
+	const sortable = this.getNodeParameter('sortable', false) as boolean;
+	if (sortable) document.sortable = true;
+
+	const message = this.getNodeParameter('message', '') as string;
+	if (message) document.message = message;
+
+	const reminder = this.getNodeParameter('reminder', '') as string;
+	if (reminder) document.reminder = reminder;
+
+	const footer = this.getNodeParameter('footer', '') as string;
+	if (footer) document.footer = footer;
+
+	const qualified = this.getNodeParameter('qualified', false) as boolean;
+	if (qualified) document.qualified = true;
+
+	const scrollingRequired = this.getNodeParameter('scrollingRequired', false) as boolean;
+	if (scrollingRequired) document.scrolling_required = true;
+
+	const stopOnRejected = this.getNodeParameter('stopOnRejected', false) as boolean;
+	if (stopOnRejected) document.stop_on_rejected = true;
+
+	const newSignatureStyle = this.getNodeParameter('newSignatureStyle', false) as boolean;
+	if (newSignatureStyle) document.new_signature_style = true;
+
+	const showAuditPage = this.getNodeParameter('showAuditPage', true) as boolean;
+	document.show_audit_page = showAuditPage;
+
+	const ignoreCpf = this.getNodeParameter('ignoreCpf', false) as boolean;
+	if (ignoreCpf) document.ignore_cpf = true;
+
+	const ignoreBirthdate = this.getNodeParameter('ignoreBirthdate', false) as boolean;
+	if (ignoreBirthdate) document.ignore_birthdate = true;
+
+	const deadlineAt = this.getNodeParameter('deadlineAt', '') as string;
+	if (deadlineAt) document.deadline_at = deadlineAt;
+
+	const organizationId = this.getNodeParameter('organizationId', '') as string;
+	const folderId = this.getNodeParameter('createInFolderId', '') as string;
+
+	const queryArgParts = ['$document: DocumentInput!', '$signers: [SignerInput!]!', '$file: Upload!'];
+	const mutationArgParts = ['document: $document', 'signers: $signers', 'file: $file'];
+	const variables: Record<string, unknown> = { document, signers, file: null };
+
+	if (folderId) {
+		queryArgParts.push('$folder_id: UUID');
+		mutationArgParts.push('folder_id: $folder_id');
+		variables.folder_id = folderId;
+	}
+
+	if (organizationId) {
+		queryArgParts.push('$organization_id: Int');
+		mutationArgParts.push('organization_id: $organization_id');
+		const orgIdNum = parseInt(organizationId, 10);
+		variables.organization_id = Number.isNaN(orgIdNum) ? organizationId : orgIdNum;
+	}
+
+	const query = `mutation CreateDocumentMutation(${queryArgParts.join(', ')}) {
+		createDocument(${mutationArgParts.join(', ')}) {
+			id
+			name
+			refusable
+			sortable
+			created_at
+			signatures {
+				public_id
+				name
+				email
+				action { name }
+				link { short_link }
+			}
+		}
+	}`;
+
+	const operations = { query, variables };
+
+	let fileBuffer: Buffer;
+	try {
+		fileBuffer = Buffer.from(fileContent, 'base64');
+	} catch (error) {
+		throw new NodeOperationError(this.getNode(), 'File Content must be a valid Base64 string');
+	}
+	if (fileBuffer.length === 0) {
+		throw new NodeOperationError(this.getNode(), 'File Content decoded to empty buffer — check Base64 input');
+	}
+
+	const safeName = (documentName || 'document').replace(/[^\w.\-]+/g, '_');
+	const filename = /\.[a-zA-Z0-9]{2,5}$/.test(safeName) ? safeName : `${safeName}.pdf`;
+
+	const form = new FormData();
+	form.append('operations', JSON.stringify(operations));
+	form.append('map', JSON.stringify({ '0': ['variables.file'] }));
+	form.append('0', fileBuffer, {
+		filename,
+		contentType: 'application/pdf',
+	});
+
+	const headers: Record<string, unknown> = { ...(requestOptions.headers || {}) };
+	delete headers['Content-Type'];
+	delete headers['content-type'];
+
+	requestOptions.body = form;
+	requestOptions.headers = { ...headers, ...form.getHeaders() };
+	requestOptions.json = false;
+
+	return requestOptions;
+}
 
 export class Autentique implements INodeType {
 	description: INodeTypeDescription = {
@@ -161,12 +306,13 @@ export class Autentique implements INodeType {
 						action: 'Create',
 						description: 'Criar um novo documento para assinatura',
 						routing: {
+							send: {
+								preSend: [createDocumentPreSend],
+							},
 							request: {
 								method: 'POST',
 								url: '/graphql',
-								headers: {},
 							},
-
 						},
 					},
 					{
